@@ -1,0 +1,22 @@
+apiVersion: alb.yc.io/v1alpha1
+kind: HttpBackendGroup
+metadata:
+  name: alb-demo-bg
+  namespace: {{ NS_NAME }}-ns
+spec:
+  backends:
+    - name: demo-backend
+      weight: 30
+      useHttp2: false
+      service:
+        name: alb-demo-1
+        port:
+          name: http
+      healthChecks:
+        - http:
+            port: {{ HC_NODEPORT }}
+            path: /health
+          healthyThreshold: 1
+          unhealthyThreshold: 1
+          timeout: 2s
+          interval: 5s

@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ NS_NAME }}-ns
+spec:
+  finalizers:
+  - kubernetes
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ APP_NAME }}-deployment
+  namespace: {{ NS_NAME }}-ns
+  labels:
+    app: {{ APP_NAME }}
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: {{ APP_NAME }}
+  template:
+    metadata:
+      labels:
+        app: {{ APP_NAME }}
+    spec:
+      containers:
+      - name: srv
+        image: {{ TEST_IMG }}
+        ports:
+        - containerPort: {{ APP_PORT }}
+        env:
+        - name: NAME
+          value: "{{ APP_NAME }}"
+        - name: PORT
+          value: "{{ APP_PORT }}"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ APP_NAME }}
+  name: {{ APP_NAME }}-service
+  namespace: {{ NS_NAME }}-ns
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    port: {{ SVC_PORT }}
+    targetPort: {{ APP_PORT }}
+    protocol: TCP
+    nodePort: {{ NODE_PORT }}
+  selector:
+    app: {{ APP_NAME }}

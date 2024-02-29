@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        volumeMounts:
+          - name: service-key
+            mountPath: "/keys"
+            readOnly: true
+      volumes:
+        - name: service-key
+          secret:
+            secretName: sa-key

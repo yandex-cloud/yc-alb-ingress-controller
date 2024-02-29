@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example5-ns
+spec:
+  finalizers:
+    - kubernetes
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: example5-ns
+  name: example5-wss
+  labels:
+    app: wss-server
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wss-server
+  template:
+    metadata:
+      labels:
+        app: wss-server
+    spec:
+      terminationGracePeriodSeconds: 5
+      volumes:
+        - name: example-tls-cert-pkcs12
+          secret:
+            secretName: example-tls-cert-pkcs12-secret
+      containers:
+        - name: wss-server
+          image: solsson/websocat
+          args:
+            - wss-listen:0.0.0.0:443
+            - literalreply:"[wss] Hello from secure ws"
+            - --pkcs12-der
+            - /certs/pkcs12
+            - -v
+          ports:
+            - name: http
+              containerPort: 443
+          volumeMounts:
+            - name: example-tls-cert-pkcs12
+              mountPath: /certs
+              readOnly: true
+          resources:
+            limits:
+              cpu: 250m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: example5-ns
+  name: wss-server-service
+spec:
+  selector:
+    app: wss-server
+  type: NodePort
+  ports:
+    - name: http
+      port: 8443
+      targetPort: 443
+      protocol: TCP
+      nodePort: 30091

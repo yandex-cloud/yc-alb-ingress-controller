@@ -1,0 +1,38 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: example1-ingress1
+  namespace: {{ NS_NAME }}-ns
+  annotations:
+    ingress.alb.yc.io/group-name: default
+    ingress.alb.yc.io/subnets: {{ SUBNET_A }},{{ SUBNET_B }},{{ SUBNET_C }}
+    ingress.alb.yc.io/security-groups: {{ SG_1 }},{{ SG_2 }}
+    ingress.alb.yc.io/external-ipv4-address: {{ ALB_IP }}
+    ingress.alb.yc.io/request-timeout: 15s
+    ingress.alb.yc.io/idle-timeout: 6m
+    ingress.alb.yc.io/upgrade-types: WebSocket
+spec:
+  tls:
+    - hosts:
+        - first-server.info
+      secretName: yc-certmgr-cert-id-{{ CERTIFICATE_ID }}
+  rules:
+    - host: first-server.info
+      http:
+        paths:
+          - path: /go
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ APP_NAME_1 }}-service
+                port:
+                  number: {{ SVC_PORT }}
+          - path: /vamoose
+            pathType: Prefix
+            backend:
+              resource:
+                apiGroup: alb.yc.io
+                kind: HttpBackendGroup
+                name: example5-bg
+---

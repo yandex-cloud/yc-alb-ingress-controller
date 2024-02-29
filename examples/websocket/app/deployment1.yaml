@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example5-ns
+spec:
+  finalizers:
+    - kubernetes
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: example5-ns
+  name: example5
+  labels:
+    app: ws-server
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ws-server
+  template:
+    metadata:
+      labels:
+        app: ws-server
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: ws-server
+          image: solsson/websocat
+          args:
+            - -E
+            - ws-listen:0.0.0.0:80
+            - literalreply:"[ws] Hello from ws"
+            - -v
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            limits:
+              cpu: 250m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: example5-ns
+  name: ws-server-service
+spec:
+  selector:
+    app: ws-server
+  type: NodePort
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 80
+      protocol: TCP
+      nodePort: 30090

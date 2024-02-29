@@ -1,0 +1,23 @@
+apiVersion: alb.yc.io/v1alpha1
+kind: HttpBackendGroup
+metadata:
+  namespace: testapp-ns
+  name: bg-with-bucket-e2e
+spec:
+  backends:
+    - name: blue
+      weight: 70
+      storageBucket:
+        name: alb-ingress-e2e
+
+    - name: green
+      weight: 30
+      useHttp2: false
+      service:
+        name: testapp-service
+        port:
+          name: http
+#      tls: {
+#        sni: XXXXX // optional
+#          trustedCa: "====begin certificate====...." // optional
+#      }

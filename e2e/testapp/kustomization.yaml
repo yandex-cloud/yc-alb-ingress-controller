@@ -1,0 +1,15 @@
+resources:
+- testapp.yaml
+- grpc-testapp.yaml
+- h2-testapp.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: grpc-testapp
+  newName: grpc-testapp
+- name: testapp
+  newName: testapp

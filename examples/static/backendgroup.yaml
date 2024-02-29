@@ -1,0 +1,13 @@
+---
+apiVersion: alb.yc.io/v1alpha1
+kind: HttpBackendGroup
+metadata:
+  namespace: {{ NS_NAME }}-ns
+  name: bg-with-bucket-e2e
+spec:
+  backends:
+    - name: bucket-backend
+      weight: 1
+      storageBucket:
+        name: {{ BUCKET }}
+---

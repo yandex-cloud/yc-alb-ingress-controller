@@ -1,0 +1,20 @@
+# permissions for end users to view httpbackendgroups.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: httpbackendgroup-viewer-role
+rules:
+- apiGroups:
+  - alb.yc.io
+  resources:
+  - httpbackendgroups
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - alb.yc.io
+  resources:
+  - httpbackendgroups/status
+  verbs:
+  - get

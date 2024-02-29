@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example4-ns
+spec:
+  finalizers:
+    - kubernetes
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: example4-ns
+  name: go-http2-server
+data:
+  server.go: |+
+    package main
+
+    import (
+      "log"
+      "net/http"
+    )
+
+    func main() {
+      srv := &http.Server{Addr: ":443", Handler: http.HandlerFunc(handle)}
+      log.Printf("Serving on https://0.0.0.0:443")
+      log.Fatal(srv.ListenAndServeTLS("/certs/tls.crt", "/certs/tls.key"))
+    }
+
+    func handle(w http.ResponseWriter, r *http.Request) {
+      _, _ = w.Write([]byte("Hello " + r.Proto + " client"))
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: example4-ns
+  name: example4
+  labels:
+    app: alb-demo-1
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: http2-server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: http2-server
+        version: v1
+    spec:
+      terminationGracePeriodSeconds: 5
+      volumes:
+        - name: srv
+          configMap:
+            name: go-http2-server
+        - name: example-tls-cert
+          secret:
+            secretName: example-tls-cert-secret
+      containers:
+        - name: http2-server
+          image: golang:1.16
+          command:
+            - go
+          args:
+            - run
+            - server.go
+          workingDir: /app
+          ports:
+            - name: http
+              containerPort: 443
+          volumeMounts:
+            - name: srv
+              mountPath: /app
+            - name: example-tls-cert
+              mountPath: /certs
+              readOnly: true
+          resources:
+            limits:
+              cpu: 250m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: example4-ns
+  name: http2-server-service
+spec:
+  selector:
+    app: http2-server
+  type: NodePort
+  ports:
+    - name: http
+      port: 8443
+      targetPort: 443
+      protocol: TCP
+      nodePort: 30090

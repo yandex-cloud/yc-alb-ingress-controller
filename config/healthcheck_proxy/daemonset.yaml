@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubeproxy-hc-proxy
+  labels:
+    control-plane: controller-manager
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+      containers:
+        - name: hc-proxy
+          image: cr.yandex/mirror/alpine/socat:1.7.4.2-r0
+          imagePullPolicy: IfNotPresent
+          command:
+            - socat
+          args:
+            - TCP6-LISTEN:10501,ipv6only=0,fork
+            - TCP:localhost:10256
+          ports:
+            - containerPort: 10501
+              hostPort: 10501
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+      terminationGracePeriodSeconds: 10

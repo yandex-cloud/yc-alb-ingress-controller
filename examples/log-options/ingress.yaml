@@ -1,0 +1,67 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: logs-demo-nondefault
+  annotations:
+    ingress.alb.yc.io/group-name: non-default
+    ingress.alb.yc.io/subnets: {{ SUBNET_A }},{{ SUBNET_B }},{{ SUBNET_C }}
+    ingress.alb.yc.io/security-groups: {{ SG_1 }},{{ SG_2 }}
+    ingress.alb.yc.io/group-settings-name: non-default-settings
+    ingress.alb.yc.io/external-ipv4-address: auto
+spec:
+  rules:
+    - host: lol.kek
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: alb-demo-1
+                port: 
+                  name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: logs-demo-disabled
+  annotations:
+    ingress.alb.yc.io/group-name: logs-disabled
+    ingress.alb.yc.io/subnets: {{ SUBNET_A }},{{ SUBNET_B }},{{ SUBNET_C }}
+    ingress.alb.yc.io/security-groups: {{ SG_1 }},{{ SG_2 }}
+    ingress.alb.yc.io/group-settings-name: logs-disabled-settings
+    ingress.alb.yc.io/external-ipv4-address: auto
+spec:
+  rules:
+    - host: lol.kek
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: alb-demo-1
+                port:
+                  name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: logs-demo-default
+  annotations:
+    ingress.alb.yc.io/group-name: default
+    ingress.alb.yc.io/subnets: {{ SUBNET_A }},{{ SUBNET_B }},{{ SUBNET_C }}
+    ingress.alb.yc.io/security-groups: {{ SG_1 }},{{ SG_2 }}
+    ingress.alb.yc.io/external-ipv4-address: auto
+spec:
+  rules:
+    - host: lol.kek
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: alb-demo-1
+                port:
+                  name: http

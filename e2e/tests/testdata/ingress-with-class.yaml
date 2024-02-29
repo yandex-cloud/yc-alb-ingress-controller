@@ -1,0 +1,77 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testapp-ingress-with-class1
+  namespace: testapp-ns
+  annotations:
+    ingress.alb.yc.io/group-name: default-class
+    ingress.alb.yc.io/subnets: {{ SUBNET_A }},{{ SUBNET_B }},{{ SUBNET_C }}
+    ingress.alb.yc.io/security-groups: {{ SG_1 }},{{ SG_2 }}
+    ingress.alb.yc.io/external-ipv6-address: auto
+    ingress.alb.yc.io/request-timeout: 15s
+    ingress.alb.yc.io/idle-timeout: 6m
+spec:
+  ingressClassName: testapp-ingress-class1
+  rules:
+    - host: first-server.info
+      http:
+        paths:
+          - path: /go
+            pathType: Prefix
+            backend:
+              service:
+                name: testapp-service
+                port:
+                  name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testapp-ingress-with-class2
+  namespace: testapp-ns
+  annotations:
+    ingress.alb.yc.io/group-name: default-class
+    ingress.alb.yc.io/security-groups: {{ SG_1 }},{{ SG_2 }}
+    ingress.alb.yc.io/request-timeout: 10s
+    ingress.alb.yc.io/idle-timeout: 6m
+spec:
+  ingressClassName: testapp-ingress-class2
+  rules:
+    - host: second-server.info
+      http:
+        paths:
+          - path: /vamoose
+            pathType: Prefix
+            backend:
+              service:
+                name: testapp-service
+                port:
+                  number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testapp-ingress-with-class3
+  namespace: testapp-ns
+  annotations:
+    ingress.alb.yc.io/group-name: non-default-class
+    ingress.alb.yc.io/subnets: {{ SUBNET_A }},{{ SUBNET_B }}
+    ingress.alb.yc.io/external-ipv6-address: auto
+    ingress.alb.yc.io/request-timeout: 15s
+spec:
+  tls:
+    - hosts:
+        - third-server.info
+      secretName: yc-certmgr-cert-id-fpqtvmqb9gkebdbvk16m
+  rules:
+    - host: third-server.info
+      http:
+        paths:
+          - path: /test
+            pathType: Prefix
+            backend:
+              service:
+                name: testapp-service
+                port:
+                  number: 8080

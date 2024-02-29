@@ -1,0 +1,417 @@
+- balancer:
+    allocationPolicy:
+      locations:
+      - subnetId: {{ SUBNET_A }}
+        zoneId: ru-central1-a
+      - subnetId: {{ SUBNET_B }}
+        zoneId: ru-central1-b
+      - subnetId: {{ SUBNET_C }}
+        zoneId: ru-central1-c
+    createdAt: "2024-02-08T08:37:40.861640389Z"
+    description: 'ALB for ingresses with tag: default'
+    folderId: b1gu6misphmisk43v5l7
+    id: ds7ccnd8d8eg3fqcjbnb
+    labels:
+      cluster_ref_label: default
+      system: yc-alb-ingress
+    listeners:
+    - endpoints:
+      - addresses:
+        - externalIpv6Address:
+            address: 2a0d:d6c0:0:1a::5a6
+        ports:
+        - "80"
+      http:
+        handler:
+          httpRouterId: ds7ne5g0q8ukve9ptva9
+      name: listenerhttp-f6810d5fdc6bf681b8b632d6e62144b17f0da56c
+    - endpoints:
+      - addresses:
+        - externalIpv6Address:
+            address: 2a0d:d6c0:0:1a::5a6
+        ports:
+        - "443"
+      name: listenertls-f6810d5fdc6bf681b8b632d6e62144b17f0da56c
+      tls:
+        defaultHandler:
+          certificateIds:
+          - fpqdfk9u2ku5uc804d07
+          httpHandler:
+            httpRouterId: ds7t5cg17ut9hup03vpa
+        sniHandlers:
+        - handler:
+            certificateIds:
+            - fpqdfk9u2ku5uc804d07
+            httpHandler:
+              httpRouterId: ds7t5cg17ut9hup03vpa
+          name: sni-2d610e223e141dc1426fab9afd7cc03b60d892a5
+          serverNames:
+          - first-server.info
+        - handler:
+            certificateIds:
+            - fpqtvmqb9gkebdbvk16m
+            httpHandler:
+              httpRouterId: ds7t5cg17ut9hup03vpa
+          name: sni-6f36c42be2e90b2ff68bda5016415500c6286a5d
+          serverNames:
+          - '*.info'
+    name: alb-f6810d5fdc6bf681b8b632d6e62144b17f0da56c
+    networkId: enpree586i828gb7nrb3
+    securityGroupIds:
+    - {{ SG_1 }}
+    - {{ SG_2 }}
+    status: ACTIVE
+  router:
+    createdAt: "2024-02-08T08:37:39.743837223Z"
+    description: 'router for k8s ingress with tag: default'
+    folderId: b1gu6misphmisk43v5l7
+    id: ds7ne5g0q8ukve9ptva9
+    labels:
+      cluster_ref_label: default
+      system: yc-alb-ingress
+    name: httprouter-f6810d5fdc6bf681b8b632d6e62144b17f0da56c
+    virtualHosts:
+    - authority:
+      - seventh-server.info
+      name: vh-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-0
+      routes:
+      - http:
+          match:
+            path:
+              exactMatch: /go
+          route:
+            backendGroupId: ds77rr73v7ep2ciqtakm
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-0
+      - http:
+          match:
+            path:
+              prefixMatch: /go
+          route:
+            backendGroupId: ds7p3n8k3knj7v80vjib
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-1
+    - authority:
+      - first-server.info
+      name: vh-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-1
+      routes:
+      - http:
+          directResponse:
+            body:
+              text: hello there
+            status: "500"
+          match:
+            path:
+              prefixMatch: /direct-response-500
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-2
+      - http:
+          match:
+            path:
+              regexMatch: /rege(x(es)?|xps?)
+          route:
+            backendGroupId: ds7p3n8k3knj7v80vjib
+            idleTimeout: 360s
+            timeout: 15s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-4
+      - http:
+          match:
+            path:
+              prefixMatch: /go
+          route:
+            backendGroupId: ds7t9jbn5asofeoi26nn
+            idleTimeout: 360s
+            timeout: 15s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-14
+      - http:
+          match:
+            path:
+              prefixMatch: /insecure-nonwildcard
+          route:
+            backendGroupId: ds7p3n8k3knj7v80vjib
+            idleTimeout: 360s
+            timeout: 15s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-12
+      - grpc:
+          match:
+            fqmn:
+              prefixMatch: /helloworld.Greeter/SayHello
+          route:
+            backendGroupId: ds78dstdpcp6kabd5erl
+            idleTimeout: 360s
+            maxTimeout: 15s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-13
+      - http:
+          match:
+            path:
+              prefixMatch: /other-ns-go
+          route:
+            backendGroupId: ds7t9jbn5asofeoi26nn
+            idleTimeout: 360s
+            timeout: 15s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-15
+    - authority:
+      - second-server.info
+      name: vh-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-2
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /proceed-h2c
+          route:
+            backendGroupId: ds79fpfmisjv01i9jr9i
+            idleTimeout: 360s
+            timeout: 15s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-7
+      - http:
+          match:
+            path:
+              prefixMatch: /vamoose
+          route:
+            backendGroupId: ds7p3n8k3knj7v80vjib
+            idleTimeout: 360s
+            timeout: 10s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-8
+    - authority:
+      - sixth-server.info
+      name: vh-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-3
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /static
+          route:
+            backendGroupId: ds7d6iu46g6p0rdpu2ge
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-9
+    - authority:
+      - '*.info'
+      name: vh-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-4
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /secure-wildcard
+          redirect:
+            replacePort: "443"
+            replaceScheme: https
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-10
+  tls_router:
+    createdAt: "2024-02-08T08:37:40.351576681Z"
+    description: 'router for k8s ingress with tag: default'
+    folderId: b1gu6misphmisk43v5l7
+    id: ds7t5cg17ut9hup03vpa
+    labels:
+      cluster_ref_label: default
+      system: yc-alb-ingress
+    name: tlsrouter-f6810d5fdc6bf681b8b632d6e62144b17f0da56c
+    virtualHosts:
+    - authority:
+      - first-server.info
+      name: vh-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-5
+      routes:
+      - http:
+          directResponse:
+            body:
+              text: hello there
+            status: "500"
+          match:
+            path:
+              prefixMatch: /direct-response-500
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-3
+      - grpc:
+          match:
+            fqmn:
+              prefixMatch: /helloworld.Greeter/SayHello
+          route:
+            backendGroupId: ds78dstdpcp6kabd5erl
+            idleTimeout: 360s
+            maxTimeout: 15s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-6
+    - authority:
+      - '*.info'
+      name: vh-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-6
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /secure-wildcard
+          route:
+            backendGroupId: ds7p3n8k3knj7v80vjib
+            idleTimeout: 360s
+            timeout: 15s
+        name: route-f6810d5fdc6bf681b8b632d6e62144b17f0da56c-11
+- balancer:
+    allocationPolicy:
+      locations:
+      - subnetId: {{ SUBNET_B }}
+        zoneId: ru-central1-b
+      - subnetId: {{ SUBNET_C }}
+        zoneId: ru-central1-c
+    createdAt: "2024-02-08T08:37:37.687470801Z"
+    description: 'ALB for ingresses with tag: internal'
+    folderId: b1gu6misphmisk43v5l7
+    id: ds7feeajk96i67560nle
+    labels:
+      cluster_ref_label: default
+      system: yc-alb-ingress
+    listeners:
+    - endpoints:
+      - addresses:
+        - internalIpv4Address:
+            subnetId: {{ SUBNET_C }}
+        ports:
+        - "80"
+      http:
+        handler:
+          httpRouterId: ds75pklargta2im23gl4
+      name: listenerhttp-fcd738700acad9372394ed0452f4607feb050502
+    name: alb-fcd738700acad9372394ed0452f4607feb050502
+    networkId: enpree586i828gb7nrb3
+    status: ACTIVE
+  router:
+    createdAt: "2024-02-08T08:37:37.408695645Z"
+    description: 'router for k8s ingress with tag: internal'
+    folderId: b1gu6misphmisk43v5l7
+    id: ds75pklargta2im23gl4
+    labels:
+      cluster_ref_label: default
+      system: yc-alb-ingress
+    name: httprouter-fcd738700acad9372394ed0452f4607feb050502
+    virtualHosts:
+    - authority:
+      - fifth-server.info
+      name: vh-fcd738700acad9372394ed0452f4607feb050502-0
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /go-internal
+          route:
+            backendGroupId: ds7p3n8k3knj7v80vjib
+        name: route-fcd738700acad9372394ed0452f4607feb050502-0
+  tls_router: {}
+- balancer:
+    allocationPolicy:
+      locations:
+      - subnetId: {{ SUBNET_A }}
+        zoneId: ru-central1-a
+      - subnetId: {{ SUBNET_B }}
+        zoneId: ru-central1-b
+      - subnetId: {{ SUBNET_C }}
+        zoneId: ru-central1-c
+    createdAt: "2024-02-08T08:37:42.943092268Z"
+    description: 'ALB for ingresses with tag: non-default'
+    folderId: b1gu6misphmisk43v5l7
+    id: ds7h4mro7jhud4kci4h8
+    labels:
+      cluster_ref_label: default
+      system: yc-alb-ingress
+    listeners:
+    - endpoints:
+      - addresses:
+        - externalIpv6Address:
+            address: 2a0d:d6c1:0:1b::261
+        ports:
+        - "80"
+      http:
+        handler:
+          httpRouterId: ds77bc1t3tocagr6e1q7
+      name: listenerhttp-6c310c5580ac0521f485019ee38ea0a1e707a060
+    - endpoints:
+      - addresses:
+        - externalIpv6Address:
+            address: 2a0d:d6c1:0:1b::261
+        ports:
+        - "443"
+      name: listenertls-6c310c5580ac0521f485019ee38ea0a1e707a060
+      tls:
+        defaultHandler:
+          certificateIds:
+          - fpqtvmqb9gkebdbvk16m
+          httpHandler:
+            httpRouterId: ds7gk5lo5hvgeb8l76eh
+        sniHandlers:
+        - handler:
+            certificateIds:
+            - fpqtvmqb9gkebdbvk16m
+            httpHandler:
+              httpRouterId: ds7gk5lo5hvgeb8l76eh
+          name: sni-0ec69306de02f5819ff377596c6734a0b431edc8
+          serverNames:
+          - third-server.info
+        - handler:
+            certificateIds:
+            - fpqtvmqb9gkebdbvk16m
+            httpHandler:
+              httpRouterId: ds7gk5lo5hvgeb8l76eh
+          name: sni-b695ca02174e203b0ba56a49cd39c933d47cb95e
+          serverNames:
+          - fourth-server.info
+    name: alb-6c310c5580ac0521f485019ee38ea0a1e707a060
+    networkId: enpree586i828gb7nrb3
+    status: ACTIVE
+  router:
+    createdAt: "2024-02-08T08:37:41.587783085Z"
+    description: 'router for k8s ingress with tag: non-default'
+    folderId: b1gu6misphmisk43v5l7
+    id: ds77bc1t3tocagr6e1q7
+    labels:
+      cluster_ref_label: default
+      system: yc-alb-ingress
+    name: httprouter-6c310c5580ac0521f485019ee38ea0a1e707a060
+    virtualHosts:
+    - authority:
+      - third-server.info
+      name: vh-6c310c5580ac0521f485019ee38ea0a1e707a060-0
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /test
+          redirect:
+            replacePort: "443"
+            replaceScheme: https
+        name: route-6c310c5580ac0521f485019ee38ea0a1e707a060-0
+    - authority:
+      - fourth-server.info
+      name: vh-6c310c5580ac0521f485019ee38ea0a1e707a060-1
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /test
+          redirect:
+            replacePort: "443"
+            replaceScheme: https
+        name: route-6c310c5580ac0521f485019ee38ea0a1e707a060-2
+  tls_router:
+    createdAt: "2024-02-08T08:37:41.792570265Z"
+    description: 'router for k8s ingress with tag: non-default'
+    folderId: b1gu6misphmisk43v5l7
+    id: ds7gk5lo5hvgeb8l76eh
+    labels:
+      cluster_ref_label: default
+      system: yc-alb-ingress
+    name: tlsrouter-6c310c5580ac0521f485019ee38ea0a1e707a060
+    virtualHosts:
+    - authority:
+      - third-server.info
+      name: vh-6c310c5580ac0521f485019ee38ea0a1e707a060-2
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /test
+          route:
+            backendGroupId: ds7p3n8k3knj7v80vjib
+            timeout: 15s
+        name: route-6c310c5580ac0521f485019ee38ea0a1e707a060-1
+    - authority:
+      - fourth-server.info
+      name: vh-6c310c5580ac0521f485019ee38ea0a1e707a060-3
+      routes:
+      - http:
+          match:
+            path:
+              prefixMatch: /test
+          route:
+            backendGroupId: ds7p3n8k3knj7v80vjib
+            timeout: 20s
+        name: route-6c310c5580ac0521f485019ee38ea0a1e707a060-3

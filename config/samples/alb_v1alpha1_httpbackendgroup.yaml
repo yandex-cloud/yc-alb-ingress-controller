@@ -1,0 +1,7 @@
+apiVersion: alb.yc.io/v1alpha1
+kind: HttpBackendGroup
+metadata:
+  name: httpbackendgroup-sample
+spec:
+  # Add fields here
+  foo: bar

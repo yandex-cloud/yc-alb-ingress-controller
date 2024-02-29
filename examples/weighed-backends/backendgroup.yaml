@@ -1,0 +1,19 @@
+apiVersion: alb.yc.io/v1alpha1
+kind: HttpBackendGroup
+metadata:
+  namespace: {{ NS_NAME }}-ns
+  name: example2-bg
+spec:
+  backends:
+    - name: slow
+      weight: 20
+      service:
+        name: {{ APP_NAME_1 }}-service
+        port:
+          number: {{ SVC_PORT }}
+    - name: fast
+      weight: 80
+      service:
+        name: {{ APP_NAME_2 }}-service
+        port:
+          number: {{ SVC_PORT }}

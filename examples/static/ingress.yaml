@@ -1,0 +1,23 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: example3-ingress1
+  namespace: {{ NS_NAME }}-ns
+  annotations:
+    ingress.alb.yc.io/group-name: static
+    ingress.alb.yc.io/subnets: {{ SUBNET_B }},{{ SUBNET_C }}
+    ingress.alb.yc.io/external-ipv4-address: {{ ALB_IP }}
+spec:
+  rules:
+    - host: first-server.info
+      http:
+        paths:
+          - path: /static
+            pathType: Prefix
+            backend:
+              resource:
+                apiGroup: alb.yc.io
+                kind: HttpBackendGroup
+                name: bg-with-bucket-e2e
+---

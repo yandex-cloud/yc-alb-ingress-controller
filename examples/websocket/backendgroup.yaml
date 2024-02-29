@@ -1,0 +1,17 @@
+apiVersion: alb.yc.io/v1alpha1
+kind: HttpBackendGroup
+metadata:
+  namespace: example5-ns
+  name: example5-bg
+spec:
+  backends:
+    - name: wss-server
+      weight: 1
+      tls:
+        sni: first-server.info
+        trustedCa: |
+          {{ CERT_CA }}
+      service:
+        name: wss-server-service
+        port:
+          number: 8443

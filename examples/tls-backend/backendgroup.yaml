@@ -1,0 +1,18 @@
+apiVersion: alb.yc.io/v1alpha1
+kind: HttpBackendGroup
+metadata:
+  namespace: example4-ns
+  name: example4-bg
+spec:
+  backends:
+    - name: http2-server
+      weight: 1
+      useHttp2: true
+      tls:
+        sni: first-server.info
+        trustedCa: |
+          {{ CERT_CA }}
+      service:
+        name: http2-server-service
+        port:
+          number: 8443

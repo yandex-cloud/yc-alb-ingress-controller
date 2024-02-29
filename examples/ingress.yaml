@@ -1,0 +1,65 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testapp-ingress1
+  namespace: testapp-ns
+spec:
+  tls:
+  - hosts:
+    - kotiki.io
+    secretName: yc-certmgr-cert-id-fpqvotp1ekij1m9qk856
+  rules:
+    - host: kotiki.io
+      http:
+        paths:
+          - path: /go
+            pathType: Prefix
+            backend:
+              service:
+                name: testapp-service
+                port:
+                  number: 8080
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testapp-ingress2
+  namespace: testapp-ns
+spec:
+  rules:
+    - host: second-server.info
+      http:
+        paths:
+          - path: /vamoose
+            pathType: Prefix
+            backend:
+              service:
+                name: testapp-service
+                port:
+                  number: 8080
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testapp-ingress3
+  namespace: testapp-ns
+spec:
+  tls:
+  - hosts:
+    - third-server.io
+    secretName: yc-certmgr-cert-id-fpqvotp1ekij1m9qk856
+  rules:
+    - host: third-server.io
+      http:
+        paths:
+          - path: /test
+            pathType: Prefix
+            backend:
+              service:
+                name: testapp-service
+                port:
+                  number: 8080

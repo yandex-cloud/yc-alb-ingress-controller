@@ -1,0 +1,26 @@
+apiVersion: alb.yc.io/v1alpha1
+kind: IngressGroupSettings
+metadata:
+  name: non-default-settings
+logOptions:
+  logGroupID: {{ LOG_GROUP_ID }}
+  discardRules:
+    - discardPercent: 50
+      grpcCodes:
+        - OK
+        - CANCELLED
+        - UNKNOWN
+    - discardPercent: 67
+      httpCodeIntervals:
+        - HTTP_1XX
+    - discardPercent: 20
+      httpCodes:
+        - 200
+        - 404
+---
+apiVersion: alb.yc.io/v1alpha1
+kind: IngressGroupSettings
+metadata:
+  name: logs-disabled-settings
+logOptions:
+  disable: true

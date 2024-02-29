@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alb-demo
+  namespace: {{ NS_NAME }}-ns
+  annotations:
+    ingress.alb.yc.io/subnets: {{ SUBNET_A }},{{ SUBNET_B }},{{ SUBNET_C }}
+    ingress.alb.yc.io/security-groups: {{ SG_1 }}
+    ingress.alb.yc.io/external-ipv4-address: {{ ALB_IP }}
+    ingress.alb.yc.io/group-name: default
+spec:
+  rules:
+    - host: lol.kek
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              resource:
+                apiGroup: alb.yc.io
+                kind: HttpBackendGroup
+                name: alb-demo-bg

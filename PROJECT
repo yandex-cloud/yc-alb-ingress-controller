@@ -1,0 +1,16 @@
+domain: yc.io
+layout:
+- go.kubebuilder.io/v3
+projectName: yc-alb-ingress
+repo: github.com/yandex-cloud/alb-ingress
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: yc.io
+  group: alb
+  kind: HttpBackendGroup
+  path: github.com/yandex-cloud/alb-ingress/api/v1alpha1
+  version: v1alpha1
+version: "3"
