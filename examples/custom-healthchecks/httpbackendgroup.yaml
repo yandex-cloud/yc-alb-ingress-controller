@@ -14,8 +14,8 @@ spec:
           name: http
       healthChecks:
         - http:
-            port: {{ HC_NODEPORT }}
             path: /health
+          port: {{ HC_NODEPORT }}
           healthyThreshold: 1
           unhealthyThreshold: 1
           timeout: 2s
