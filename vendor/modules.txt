@@ -299,6 +299,9 @@ github.com/yandex-cloud/go-sdk/pkg/grpcclient
 github.com/yandex-cloud/go-sdk/pkg/sdkerrors
 github.com/yandex-cloud/go-sdk/pkg/singleflight
 github.com/yandex-cloud/go-sdk/sdkresolvers
+# go.opencensus.io v0.24.0
+## explicit; go 1.13
+go.opencensus.io/examples/grpc/proto
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr

@@ -16,16 +16,22 @@
 REGISTRY_ID=<registry_id> make docker-build  
 REGISTRY_ID=<registry_id> make docker-push  
 ```
+3. Create 2 ipv6 yandex-only ip addresses. One will be used for load balancer, another one will be used to communicate with dualstack cluster.
+4. Create dns AAAA record for alb ip address. It is needed for grpc tests
+
 Note: image name will be set to `cr.yandex/${REGISTRY_ID}/ingress-ctrl:$(git rev-parse HEAD)`  
-3. Create an authorized service account key. [Instructions](https://cloud.yandex.com/en/docs/cli/operations/authentication/service-account).  
+5. Create an authorized service account key. [Instructions](https://cloud.yandex.com/en/docs/cli/operations/authentication/service-account).  
    This account will be used by controller to create/update balancer, it must have following roles:
    `editor` on the load-balancer(s) folder
    `certificate-manager.certificates.downloader` on the TLS certificates folder
-4. Set environment variables or pass them with the Makefile commands as in the example below:  
+6. Set environment variables or pass them with the Makefile commands as in the example below:  
    `FOLDER_ID` - folder for ingress controller cloud resources  
    `KEY_FILE` - path to the authorized service account key (see above)  
    `REGISTRY_ID` - container registry with controller images (see above)  
-5. Install CRD into K8s cluster  
+   `ALB_IP` - ipv6 yandex-only address for alb (see above)  
+   `CLUSTER_IP` - ipv6 yandex-only address for k8s cluster (see above)  
+   `GRPC_HOST` - name of dns record to alb ip (see above)
+7. 8.Install CRD into K8s cluster  
 ```
 make install
 ```
@@ -40,6 +46,55 @@ FOLDER_ID=b1gao62h0ixxxxxxxxxx KEY_FILE=${HOME}/sa/key.json REGISTRY_ID=crp3164e
 FOLDER_ID=b1gao62h0ixxxxxxxxxx KEY_FILE=${HOME}/sa/key.json make undeploy
 ```
 (It will remove the ingress controller from K8s cluster and delete deployment patches made by `kustomize`)  
+
+=======
+### E2E Tests  
+
+#### Prerequisites  
+
+1. Build and push Ingress Controller image as described in [Deployment prerequisites](#prerequisites-1) (points 1,2)  
+2. Similarly, build and push Test App image  
+```
+REGISTRY_ID=crp3164es1xxxxxxxxxx make docker-build-e2e-testapp  
+REGISTRY_ID=crp3164es1xxxxxxxxxx make docker-push-e2e-testapp  
+```
+Note: image name will be set to `cr.yandex/${REGISTRY_ID}/testapp`  
+3. Set environment variables or pass them with the Makefile commands as in the example below:    
+   `FOLDER_ID` - folder for ingress controller cloud resources  
+   `REGISTRY_ID` - container registry with controller images (see above)  
+
+**Create a e2e cluster**:  
+```
+FOLDER_ID=b1gao62h0ixxxxxxxxxx REGISTRY_ID=crp3164es1xxxxxxxxxx YC_IAM_TOKEN=$(yc iam create-token) ALB_IP=xxxx:xxxx:xxxx:xxxx:xxxx:xxxx CLUSTER_IP=xxxx:xxxx:xxxx:xxxx:xxxx:xxxx GRPC_HOST=example.cloud.yandex.net make delete-env-e2e
+```
+(creates a K8s cluster and related resources: service account, network, kubeconfig)  
+
+**Install CRD into K8s cluster**  
+```
+make install
+```
+
+**Deploy a test app and an ingress controller**:  
+```
+FOLDER_ID=b1gao62h0ixxxxxxxxxx REGISTRY_ID=crp3164es1xxxxxxxxxx make deploy-e2e
+```
+
+**Run e2e tests**:  
+env var `E2ETIMEOUT` - OPTIONAL, defaults to 15m  
+```
+FOLDER_ID=b1gao62h0ixxxxxxxxxx make test-e2e
+```
+
+**Undeploy a test app and an ingress controller (without deleting a cluster)**:  
+```
+FOLDER_ID=b1gao62h0ixxxxxxxxxx make undeploy-e2e
+```
+
+**Delete a e2e cluster**:  
+```
+FOLDER_ID=b1gao62h0ixxxxxxxxxx make delete-env-e2e
+```
+(deletes a K8s cluster and related resources: service account, network, kubeconfig)  
 
 ## FAQ
 

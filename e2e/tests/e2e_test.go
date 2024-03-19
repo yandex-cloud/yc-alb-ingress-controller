@@ -86,7 +86,7 @@ var testData = []TestCase{
 		Files:       []string{"basic-ingress.yaml", "basic-backendgroup.yaml", "secret.yaml", "basic-services.yaml"},
 		GoldenFile:  "basic-ok.golden.yaml",
 		Checks: []Check{
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress1",
@@ -100,7 +100,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp2-ns",
 					Name:      "testapp-ingress7",
@@ -114,7 +114,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress2",
@@ -132,7 +132,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress3",
@@ -151,7 +151,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress3",
@@ -165,7 +165,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress4",
@@ -179,7 +179,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress4",
@@ -193,7 +193,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress6",
@@ -207,7 +207,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress8",
@@ -226,7 +226,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress8",
@@ -240,7 +240,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress8",
@@ -254,7 +254,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress-with-regex",
@@ -284,7 +284,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress-direct-response",
@@ -298,7 +298,7 @@ var testData = []TestCase{
 					},
 				},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress-diff-path",
@@ -332,6 +332,22 @@ var testData = []TestCase{
 					},
 				},
 			},
+			&GRPCCheck{
+				Ingress: types.NamespacedName{
+					Name:      "testapp-ingress9",
+					Namespace: "testapp-ns",
+				},
+				Host:   "alb-ingress-tests.k8s-marketplace.cloud.yandex.net",
+				UseTLS: false,
+			},
+			&GRPCCheck{
+				Ingress: types.NamespacedName{
+					Name:      "testapp-ingress10",
+					Namespace: "testapp-ns",
+				},
+				Host:   "alb-ingress-tests.k8s-marketplace.cloud.yandex.net",
+				UseTLS: true,
+			},
 		},
 	},
 	{
@@ -340,7 +356,7 @@ var testData = []TestCase{
 		GoldenFile:  "classes-ok.golden.yaml",
 		Files:       []string{"ingress-with-class.yaml", "ingress-class.yaml", "basic-services.yaml"},
 		Checks: []Check{
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress-with-class1",
@@ -349,7 +365,7 @@ var testData = []TestCase{
 				Proto: "http",
 				Paths: []Path{},
 			},
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress-with-class3",
@@ -366,7 +382,7 @@ var testData = []TestCase{
 		Files:       []string{"ingress-diff-pathtypes.yaml"},
 		GoldenFile:  "diffpathtypes-ok.golden.yaml",
 		Checks: []Check{
-			{
+			&HTTPCheck{
 				Ingress: types.NamespacedName{
 					Namespace: "testapp-ns",
 					Name:      "testapp-ingress1",
@@ -531,15 +547,15 @@ func TestURLAccessibility(t *testing.T) {
 				testutil.Eventually(t, func() bool {
 					err = validator.Run()
 					if err != nil {
-						log.Printf("url accessibility check not succeeded for host %s://%s: %v", v.Proto, v.Host, err)
+						log.Printf("check not succed, desc: %s, err: %v", v.Desc(), err)
 					} else {
-						log.Printf("url accessibility check succeeded for host %s://%s", v.Proto, v.Host)
+						log.Printf("check succed, desc: %s", v.Desc())
 					}
 					return err == nil
 				},
 					testutil.PollTimeout(1200*time.Second),
 					testutil.PollInterval(30*time.Second),
-					testutil.Message("failed URL accessibility check for %v", v.Ingress),
+					testutil.Message("failed URL accessibility check: %s", v.Desc()),
 				)
 			}
 

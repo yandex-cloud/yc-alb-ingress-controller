@@ -134,7 +134,6 @@ unpatch: check_FOLDER_ID
 	cd config/manager && $(KUSTOMIZE) edit set image controller=controller
 	rm -f config/default/ingress-key.json
 
-
 %-release: export REGISTRY_ID=crpsjg1coh47p81vh2lc
 %-release: export IMG=$(REGISTRY_HOST)/$(REGISTRY_ID)/$(IMG_NAME):${VERSION}
 

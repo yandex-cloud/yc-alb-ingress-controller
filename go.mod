@@ -10,6 +10,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/yandex-cloud/go-genproto v0.0.0-20231220064917-199880d921bc
 	github.com/yandex-cloud/go-sdk v0.0.0-20231220065212-8e23a0060063
+	go.opencensus.io v0.24.0
 	go.uber.org/zap v1.25.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19
 	google.golang.org/grpc v1.56.3
