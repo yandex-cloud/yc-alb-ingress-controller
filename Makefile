@@ -134,65 +134,6 @@ unpatch: check_FOLDER_ID
 	cd config/manager && $(KUSTOMIZE) edit set image controller=controller
 	rm -f config/default/ingress-key.json
 
-##@ e2e
-
-%-e2e: E2ETEMPDIR?=$(shell pwd)/e2e/tmp
-%-e2e: export E2EKEYFILE?=${E2ETEMPDIR}/.yc/sa-key.json
-%-e2e: export KEY_FILE=$(E2EKEYFILE)
-%-e2e: export E2EKUBECONFIG?=${E2ETEMPDIR}/.kube/e2ekubeconfig
-%-e2e: export KUBECONFIG=$(E2EKUBECONFIG)
-%-e2e: export E2EKUBEVERSION?=1.27
-%-e2e: export SUBNET_IDS?=$(shell . e2e/prereq/util.sh && subnet_ids 3)
-
-deploy-e2e: kustomize patch-e2e apply-e2e deploy ## Deploy controller and test app to the K8s cluster
-
-undeploy-e2e: unapply-e2e unpatch-e2e undeploy ## Undeploy controller and test app from the K8s cluster
-
-create-env-e2e: ## Create and configure a K8s cluster for e2e tests
-	./e2e/prereq/create.sh
-	. ./e2e/prereq/util.sh && inject_cert_id e2e/tests/testdata/*.yaml
-	. ./e2e/prereq/util.sh && inject_subnet_ids e2e/tests/testdata/*.yaml
-	. ./e2e/prereq/util.sh && inject_address e2e/tests/testdata/*.yaml
-	. ./e2e/prereq/util.sh && inject_security_groups e2e/tests/testdata/*.yaml
-
-delete-env-e2e: ## Delete a K8s cluster for e2e tests and related resources (SA, network, kubeconfig etc.)
-	. ./e2e/prereq/util.sh && restore_security_group_templates e2e/tests/testdata/*.yaml
-	. ./e2e/prereq/util.sh && restore_address_template e2e/tests/testdata/*.yaml
-	. ./e2e/prereq/util.sh && restore_subnet_templates e2e/tests/testdata/*.yaml
-	./e2e/prereq/cleanup.sh
-
-apply-e2e: patch-e2e
-	$(KUSTOMIZE) build e2e/testapp | kubectl apply -f -
-
-unapply-e2e: unpatch-e2e
-	$(KUSTOMIZE) build e2e/testapp | kubectl delete -f -
-
-patch-e2e: check_TEST_IMG check_TEST_IMG_GRPC
-	cd e2e/testapp && $(KUSTOMIZE) edit set image testapp=${TEST_IMG}
-	cd e2e/testapp && $(KUSTOMIZE) edit set image grpc-testapp=${TEST_IMG_GRPC}
-
-unpatch-e2e:
-	cd e2e/testapp && $(KUSTOMIZE) edit set image testapp=testapp
-	cd e2e/testapp && $(KUSTOMIZE) edit set image grpc-testapp=grpc-testapp
-
-docker-build-e2e-testapp: check_TEST_IMG ## Build docker image with the test app.
-	docker build --platform linux/amd64 -t ${TEST_IMG} -f ./e2e/testapp/TestApp.Dockerfile .
-	docker build --platform linux/amd64 -t ${TEST_IMG_GRPC} -f ./e2e/testapp/GrpcTestApp.Dockerfile ./e2e/testapp/grpc_hello_server/
-
-docker-push-e2e-testapp: check_TEST_IMG ## Push docker image with the test app.
-	docker push ${TEST_IMG}
-	docker push ${TEST_IMG_GRPC}
-
-test-e2e: E2ETIMEOUT?=50m
-test-e2e: ## Run e2e tests using deployed K8s cluster
-	go clean -testcache
-	go test -v ./e2e/tests/ -tags e2e -timeout $(E2ETIMEOUT) --keyfile=$(E2EKEYFILE)
-
-update-golden-e2e: E2ETIMEOUT?=50m
-update-golden-e2e: ## Run e2e tests using deployed K8s cluster and update golden files
-	go clean -testcache
-	go test -v ./e2e/tests/ -tags e2e -timeout $(E2ETIMEOUT) --keyfile=$(E2EKEYFILE) -update
-
 
 %-release: export REGISTRY_ID=crpsjg1coh47p81vh2lc
 %-release: export IMG=$(REGISTRY_HOST)/$(REGISTRY_ID)/$(IMG_NAME):${VERSION}
