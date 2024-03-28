@@ -2,7 +2,6 @@ package builders
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -284,9 +283,6 @@ func (r *LocationsResolver) Resolve(subnetStr string) error {
 	for i, subnetID := range subnetIDs {
 		if _, ok := r.subnetIDs[subnetID]; ok || subnetID == "" {
 			continue
-		}
-		if len(r.subnetIDs) == 3 {
-			return errors.New("too many subnets")
 		}
 
 		subnet, err := r.repo.FindSubnetByID(context.Background(), subnetID)
