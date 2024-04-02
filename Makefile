@@ -43,23 +43,23 @@ check_%:
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./controllers/..." output:crd:artifacts:config=config/crd/bases
+	cd ${PROJECT_DIR} && $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./controllers/..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
+	cd ${PROJECT_DIR} && $(CONTROLLER_GEN) object:headerFile="./hack/boilerplate.go.txt" paths="./api/..."
 
 fmt: ## Run go fmt against code.
-	go fmt ./...
+	cd ${PROJECT_DIR} && go fmt ./...
 
 vet: ## Run go vet against code.
-	go vet ./...
+	cd ${PROJECT_DIR} && go vet ./...
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 SHELL='/bin/bash'
 test: manifests generate fmt vet ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.7.0/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); cd ${PROJECT_DIR} && go test ./... -coverprofile cover.out
 
 ##@ Build
 
@@ -67,10 +67,10 @@ build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	go run ${PROJECT_DIR}/main.go
 
 docker-build: check_IMG test ## Build docker image with the manager.
-	docker build --platform linux/amd64 --build-arg CREATED_AT="$$(date --rfc-3339=seconds)" --build-arg COMMIT=$$(git rev-parse HEAD) -t ${IMG} .
+	cd ${PROJECT_DIR} && docker build --platform linux/amd64 --build-arg CREATED_AT="$$(date --rfc-3339=seconds)" --build-arg COMMIT=$$(git rev-parse HEAD) -t ${IMG} .
 
 docker-push: check_IMG ## Push docker image with the manager.
 	docker push ${IMG}
@@ -78,20 +78,20 @@ docker-push: check_IMG ## Push docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ${KUBECONFIG} or ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build ${PROJECT_DIR}/config/crd | kubectl apply -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ${KUBECONFIG} or ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build ${PROJECT_DIR}/config/crd | kubectl delete -f -
 
 deploy: manifests kustomize check_IMG check_FOLDER_ID check_KEY_FILE patch apply ## Deploy controller to the K8s cluster
 
 undeploy: check_FOLDER_ID check_KEY_FILE unapply unpatch ## Undeploy controller from the K8s cluster
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+CONTROLLER_GEN = $(PROJECT_DIR)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
 
-KUSTOMIZE = $(shell pwd)/bin/kustomize
+KUSTOMIZE =  ${PROJECT_DIR}/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
 
@@ -110,29 +110,29 @@ rm -rf $$TMP_DIR ;\
 endef
 
 apply: kustomize
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	$(KUSTOMIZE) build ${PROJECT_DIR}/config/default | kubectl apply -f -
 
 unapply: kustomize
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build ${PROJECT_DIR}/config/default | kubectl delete -f -
 
 PROD_ENDPOINT=api.cloud.yandex.net:443
 patch: check_IMG check_FOLDER_ID check_KEY_FILE
-	cp $(KEY_FILE) config/default/ingress-key.json
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd config/manager && $(KUSTOMIZE) edit add patch \
+	cp $(KEY_FILE)  ${PROJECT_DIR}/config/default/ingress-key.json
+	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit add patch \
 		--kind Deployment \
 		--name controller-manager \
 		--namespace system \
 		--patch '[{"op": "add", "path": "/spec/template/spec/containers/0/args/0", "value": "--folder-id='${FOLDER_ID}'"},{"op": "add", "path": "/spec/template/spec/containers/0/args/1", "value": "--endpoint='"$${ENDPOINT:-$(PROD_ENDPOINT)}"'"}]'
 
 unpatch: check_FOLDER_ID
-	cd config/manager && $(KUSTOMIZE) edit remove patch \
+	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit remove patch \
 		--kind Deployment \
 		--name controller-manager \
 		--namespace system \
 		--patch '[{"op": "add", "path": "/spec/template/spec/containers/0/args/0", "value": "--folder-id='${FOLDER_ID}'"},{"op": "add", "path": "/spec/template/spec/containers/0/args/1", "value": "--endpoint='"$${ENDPOINT:-$(PROD_ENDPOINT)}"'"}]' || true
-	cd config/manager && $(KUSTOMIZE) edit set image controller=controller
-	rm -f config/default/ingress-key.json
+	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit set image controller=controller
+	rm -f ${PROJECT_DIR}/config/default/ingress-key.json
 
 %-release: export REGISTRY_ID=crpsjg1coh47p81vh2lc
 %-release: export IMG=$(REGISTRY_HOST)/$(REGISTRY_ID)/$(IMG_NAME):${VERSION}
