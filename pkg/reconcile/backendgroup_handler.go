@@ -31,7 +31,7 @@ type BackendGroupEngineBuilder interface {
 }
 
 type Deployer interface {
-	Deploy(name string, re deploy.BackendGroupsReconcileEngine) (*apploadbalancer.BackendGroup, error)
+	Deploy(ctx context.Context, name string, re deploy.BackendGroupsReconcileEngine) (*apploadbalancer.BackendGroup, error)
 }
 
 type BackendGroupReconcileHandler struct {
@@ -53,7 +53,7 @@ func (b *BackendGroupReconcileHandler) HandleResourceUpdated(ctx context.Context
 	if err != nil {
 		return err
 	}
-	_, err = b.Deployer.Deploy(b.Names.BackendGroupForCR(o.GetNamespace(), o.GetName()), engine)
+	_, err = b.Deployer.Deploy(ctx, b.Names.BackendGroupForCR(o.GetNamespace(), o.GetName()), engine)
 	if err != nil {
 		return err
 	}

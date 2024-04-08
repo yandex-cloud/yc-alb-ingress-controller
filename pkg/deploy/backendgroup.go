@@ -16,6 +16,7 @@ type BackendGroupRepo interface {
 	CreateBackendGroup(ctx context.Context, group *apploadbalancer.BackendGroup) (*operation.Operation, error)
 	UpdateBackendGroup(ctx context.Context, group *apploadbalancer.BackendGroup) (*operation.Operation, error)
 	DeleteBackendGroup(context.Context, *apploadbalancer.BackendGroup) (*operation.Operation, error)
+	ListBackendGroupOperations(ctx context.Context, group *apploadbalancer.BackendGroup) ([]*operation.Operation, error)
 }
 
 type ReconciledBackendGroups struct {
@@ -24,7 +25,7 @@ type ReconciledBackendGroups struct {
 }
 
 type BackendGroupsReconcileEngine interface {
-	ReconcileBackendGroup(*apploadbalancer.BackendGroup) (*ReconciledBackendGroups, error)
+	ReconcileBackendGroup(context.Context, *apploadbalancer.BackendGroup) (*ReconciledBackendGroups, error)
 }
 
 type BackendGroupDeployManager struct {
@@ -35,13 +36,12 @@ func NewBackendGroupDeployManager(repo BackendGroupRepo) *BackendGroupDeployMana
 	return &BackendGroupDeployManager{Repo: repo}
 }
 
-func (m BackendGroupDeployManager) Deploy(name string, engine BackendGroupsReconcileEngine) (*apploadbalancer.BackendGroup, error) {
-	ctx := context.Background()
+func (m BackendGroupDeployManager) Deploy(ctx context.Context, name string, engine BackendGroupsReconcileEngine) (*apploadbalancer.BackendGroup, error) {
 	bg, err := m.Repo.FindBackendGroup(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	bgs, err := engine.ReconcileBackendGroup(bg)
+	bgs, err := engine.ReconcileBackendGroup(ctx, bg)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +77,14 @@ func (d *BackendGroupDeployer) Deploy(ctx context.Context, expected *apploadbala
 	}
 
 	// update if needed
+	ops, err := d.repo.ListBackendGroupOperations(ctx, actual)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deploy backendgroup: %w", err)
+	}
+	if len(ops) != 0 {
+		return nil, ycerrors.OperationIncompleteError{ID: ops[0].Id}
+	}
+
 	if d.predicates.BackendGroupNeedsUpdate(expected, actual) {
 		expected.Id = actual.Id
 		op, err := d.repo.UpdateBackendGroup(ctx, expected)

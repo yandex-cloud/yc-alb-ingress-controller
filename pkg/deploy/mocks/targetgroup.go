@@ -79,6 +79,21 @@ func (mr *MockTargetGroupRepoMockRecorder) FindTargetGroup(arg0, arg1 interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTargetGroup", reflect.TypeOf((*MockTargetGroupRepo)(nil).FindTargetGroup), arg0, arg1)
 }
 
+// ListTargetGroupOperations mocks base method
+func (m *MockTargetGroupRepo) ListTargetGroupIncompleteOperations(arg0 context.Context, arg1 *apploadbalancer.TargetGroup) ([]*operation.Operation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListTargetGroupIncompleteOperations", arg0, arg1)
+	ret0, _ := ret[0].([]*operation.Operation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListTargetGroupOperations indicates an expected call of ListTargetGroupOperations
+func (mr *MockTargetGroupRepoMockRecorder) ListTargetGroupOperations(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTargetGroupIncompleteOperations", reflect.TypeOf((*MockTargetGroupRepo)(nil).ListTargetGroupIncompleteOperations), arg0, arg1)
+}
+
 // UpdateTargetGroup mocks base method
 func (m *MockTargetGroupRepo) UpdateTargetGroup(arg0 context.Context, arg1 *apploadbalancer.TargetGroup) (*operation.Operation, error) {
 	m.ctrl.T.Helper()

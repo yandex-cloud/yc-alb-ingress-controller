@@ -11,6 +11,9 @@ import (
 	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
 )
 
+// this package need to be vendored for mockgen to work, but nothing depends on it in this project
+import _ "github.com/golang/mock/mockgen/model"
+
 //go:generate mockgen -destination=./mocks/targetgroup.go -package=mocks . TargetGroupRepo
 
 type TargetGroupRepo interface {
@@ -18,6 +21,7 @@ type TargetGroupRepo interface {
 	CreateTargetGroup(context.Context, *apploadbalancer.TargetGroup) (*operation.Operation, error)
 	UpdateTargetGroup(context.Context, *apploadbalancer.TargetGroup) (*operation.Operation, error)
 	DeleteTargetGroup(context.Context, *apploadbalancer.TargetGroup) error
+	ListTargetGroupIncompleteOperations(context.Context, *apploadbalancer.TargetGroup) ([]*operation.Operation, error)
 }
 
 type TargetGroupDeployer struct {
@@ -62,6 +66,14 @@ func (d *TargetGroupDeployer) Deploy(ctx context.Context, expected *apploadbalan
 	}
 
 	// update if needed
+	ops, err := d.repo.ListTargetGroupIncompleteOperations(ctx, actual)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deploy targetgroup: %w", err)
+	}
+	if len(ops) != 0 {
+		return nil, ycerrors.OperationIncompleteError{ID: ops[0].Id}
+	}
+
 	if tgUpdateNeeded(expected.Targets, actual.Targets) {
 		expected.Id = actual.Id
 		op, err := d.repo.UpdateTargetGroup(ctx, expected)

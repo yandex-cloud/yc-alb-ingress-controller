@@ -132,6 +132,20 @@ func (mr *MockDeployerMockRecorder) Deploy(arg0, arg1, arg2 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deploy", reflect.TypeOf((*MockDeployer)(nil).Deploy), arg0, arg1, arg2)
 }
 
+// UndeployOldBG mocks base method
+func (m *MockDeployer) UndeployOldBG(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UndeployOldBG", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UndeployOldBG indicates an expected call of UndeployOldBG
+func (mr *MockDeployerMockRecorder) UndeployOldBG(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UndeployOldBG", reflect.TypeOf((*MockDeployer)(nil).UndeployOldBG), arg0, arg1)
+}
+
 // MockStatusResolver is a mock of StatusResolver interface
 type MockStatusResolver struct {
 	ctrl     *gomock.Controller

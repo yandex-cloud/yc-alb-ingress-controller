@@ -140,6 +140,51 @@ func (mr *MockRepositoryMockRecorder) FindBackendGroup(arg0, arg1 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBackendGroup", reflect.TypeOf((*MockRepository)(nil).FindBackendGroup), arg0, arg1)
 }
 
+// ListBackendGroupOperations mocks base method
+func (m *MockRepository) ListBackendGroupOperations(arg0 context.Context, arg1 *apploadbalancer.BackendGroup) ([]*operation.Operation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBackendGroupOperations", arg0, arg1)
+	ret0, _ := ret[0].([]*operation.Operation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBackendGroupOperations indicates an expected call of ListBackendGroupOperations
+func (mr *MockRepositoryMockRecorder) ListBackendGroupOperations(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBackendGroupOperations", reflect.TypeOf((*MockRepository)(nil).ListBackendGroupOperations), arg0, arg1)
+}
+
+// ListHTTPRouterOperations mocks base method
+func (m *MockRepository) ListHTTPRouterIncompleteOperations(arg0 context.Context, arg1 *apploadbalancer.HttpRouter) ([]*operation.Operation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListHTTPRouterIncompleteOperations", arg0, arg1)
+	ret0, _ := ret[0].([]*operation.Operation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListHTTPRouterOperations indicates an expected call of ListHTTPRouterOperations
+func (mr *MockRepositoryMockRecorder) ListHTTPRouterOperations(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListHTTPRouterIncompleteOperations", reflect.TypeOf((*MockRepository)(nil).ListHTTPRouterIncompleteOperations), arg0, arg1)
+}
+
+// ListLoadBalancerOperations mocks base method
+func (m *MockRepository) ListLoadBalancerIncompleteOperations(arg0 context.Context, arg1 *apploadbalancer.LoadBalancer) ([]*operation.Operation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListLoadBalancerIncompleteOperations", arg0, arg1)
+	ret0, _ := ret[0].([]*operation.Operation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListLoadBalancerOperations indicates an expected call of ListLoadBalancerOperations
+func (mr *MockRepositoryMockRecorder) ListLoadBalancerOperations(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListLoadBalancerIncompleteOperations", reflect.TypeOf((*MockRepository)(nil).ListLoadBalancerIncompleteOperations), arg0, arg1)
+}
+
 // UpdateBackendGroup mocks base method
 func (m *MockRepository) UpdateBackendGroup(arg0 context.Context, arg1 *apploadbalancer.BackendGroup) (*operation.Operation, error) {
 	m.ctrl.T.Helper()

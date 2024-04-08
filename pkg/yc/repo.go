@@ -85,6 +85,17 @@ func (r *Repository) UpdateBackendGroup(ctx context.Context, group *apploadbalan
 	})
 }
 
+func (r *Repository) ListBackendGroupOperations(ctx context.Context, group *apploadbalancer.BackendGroup) ([]*operation.Operation, error) {
+	resp, err := r.sdk.ApplicationLoadBalancer().BackendGroup().ListOperations(ctx, &apploadbalancer.ListBackendGroupOperationsRequest{
+		BackendGroupId: group.Id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list operations for group %s: %w", group.Id, err)
+	}
+
+	return filterIncompleteOperations(resp.Operations), nil
+}
+
 func (r *Repository) DeleteBackendGroup(ctx context.Context, group *apploadbalancer.BackendGroup) (*operation.Operation, error) {
 	return r.sdk.ApplicationLoadBalancer().BackendGroup().Delete(ctx, &apploadbalancer.DeleteBackendGroupRequest{
 		BackendGroupId: group.Id,
@@ -130,6 +141,17 @@ func (r *Repository) UpdateHTTPRouter(ctx context.Context, router *apploadbalanc
 			"virtual_hosts",
 		}},
 	})
+}
+
+func (r *Repository) ListHTTPRouterIncompleteOperations(ctx context.Context, router *apploadbalancer.HttpRouter) ([]*operation.Operation, error) {
+	resp, err := r.sdk.ApplicationLoadBalancer().HttpRouter().ListOperations(ctx, &apploadbalancer.ListHttpRouterOperationsRequest{
+		HttpRouterId: router.Id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list operations for router %s: %w", router.Id, err)
+	}
+
+	return filterIncompleteOperations(resp.Operations), nil
 }
 
 func (r *Repository) DeleteHTTPRouter(ctx context.Context, router *apploadbalancer.HttpRouter) (*operation.Operation, error) {
@@ -224,6 +246,17 @@ func (r *Repository) UpdateLoadBalancer(ctx context.Context, balancer *apploadba
 			Paths: []string{"listener_specs", "allocation_policy", "security_group_ids", "log_options"},
 		},
 	})
+}
+
+func (r *Repository) ListLoadBalancerIncompleteOperations(ctx context.Context, balancer *apploadbalancer.LoadBalancer) ([]*operation.Operation, error) {
+	operations, err := r.sdk.ApplicationLoadBalancer().LoadBalancer().ListOperations(ctx, &apploadbalancer.ListLoadBalancerOperationsRequest{
+		LoadBalancerId: balancer.Id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list operations for load balancer %s: %w", balancer.Id, err)
+	}
+
+	return filterIncompleteOperations(operations.Operations), nil
 }
 
 func (r *Repository) DeleteLoadBalancer(ctx context.Context, balancer *apploadbalancer.LoadBalancer) (*operation.Operation, error) {
@@ -406,6 +439,17 @@ func (r *Repository) UpdateTargetGroup(ctx context.Context, group *apploadbalanc
 	})
 }
 
+func (r *Repository) ListTargetGroupIncompleteOperations(ctx context.Context, group *apploadbalancer.TargetGroup) ([]*operation.Operation, error) {
+	resp, err := r.sdk.ApplicationLoadBalancer().TargetGroup().ListOperations(ctx, &apploadbalancer.ListTargetGroupOperationsRequest{
+		TargetGroupId: group.Id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list operations for target group %s: %w", group.Id, err)
+	}
+
+	return filterIncompleteOperations(resp.Operations), nil
+}
+
 func (r *Repository) FindBackendGroup(ctx context.Context, name string) (*apploadbalancer.BackendGroup, error) {
 	resp, err := r.sdk.ApplicationLoadBalancer().BackendGroup().List(ctx, &apploadbalancer.ListBackendGroupsRequest{
 		FolderId: r.folderID,
@@ -429,4 +473,14 @@ func (r *Repository) FindInstanceByID(ctx context.Context, id string) (*compute.
 	return r.sdk.Compute().Instance().Get(ctx, &compute.GetInstanceRequest{
 		InstanceId: id,
 	})
+}
+
+func filterIncompleteOperations(ops []*operation.Operation) []*operation.Operation {
+	result := make([]*operation.Operation, 0)
+	for _, op := range ops {
+		if !op.Done {
+			result = append(result, op)
+		}
+	}
+	return result
 }

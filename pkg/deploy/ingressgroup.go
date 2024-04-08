@@ -25,9 +25,9 @@ type (
 )
 
 type ReconcileEngine interface {
-	ReconcileHTTPRouter(*apploadbalancer.HttpRouter) (*ReconciledHTTPRouter, error)
-	ReconcileTLSRouter(*apploadbalancer.HttpRouter) (*ReconciledHTTPRouter, error)
-	ReconcileBalancer(*apploadbalancer.LoadBalancer) (*ReconciledBalancer, error)
+	ReconcileHTTPRouter(context.Context, *apploadbalancer.HttpRouter) (*ReconciledHTTPRouter, error)
+	ReconcileTLSRouter(context.Context, *apploadbalancer.HttpRouter) (*ReconciledHTTPRouter, error)
+	ReconcileBalancer(context.Context, *apploadbalancer.LoadBalancer) (*ReconciledBalancer, error)
 }
 
 type ResourceFinder interface {
@@ -56,20 +56,20 @@ func (m *IngressGroupDeployManager) Deploy(ctx context.Context, tag string, engi
 		return yc.BalancerResources{}, err
 	}
 
-	httpRouter, err := engine.ReconcileHTTPRouter(resources.Router)
+	httpRouter, err := engine.ReconcileHTTPRouter(ctx, resources.Router)
 	if err != nil {
 		return yc.BalancerResources{}, err
 	}
-	tlsRouter, err := engine.ReconcileTLSRouter(resources.TLSRouter)
+	tlsRouter, err := engine.ReconcileTLSRouter(ctx, resources.TLSRouter)
 	if err != nil {
 		return yc.BalancerResources{}, err
 	}
-	balancer, err := engine.ReconcileBalancer(resources.Balancer)
+	balancer, err := engine.ReconcileBalancer(ctx, resources.Balancer)
 	if err != nil {
 		return yc.BalancerResources{}, err
 	}
 
-	err = m.repo.DeleteAllResources(context.Background(), &yc.BalancerResources{
+	err = m.repo.DeleteAllResources(ctx, &yc.BalancerResources{
 		Balancer:  balancer.Garbage,
 		Router:    httpRouter.Garbage,
 		TLSRouter: tlsRouter.Garbage,

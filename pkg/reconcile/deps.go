@@ -15,6 +15,8 @@ type backendGroupRepository interface {
 	CreateBackendGroup(context.Context, *apploadbalancer.BackendGroup) (*protooperation.Operation, error)
 	UpdateBackendGroup(context.Context, *apploadbalancer.BackendGroup) (*protooperation.Operation, error)
 	DeleteBackendGroup(context.Context, *apploadbalancer.BackendGroup) (*protooperation.Operation, error)
+
+	ListBackendGroupOperations(ctx context.Context, group *apploadbalancer.BackendGroup) ([]*protooperation.Operation, error)
 }
 
 type Repository interface {
@@ -23,10 +25,12 @@ type Repository interface {
 	CreateHTTPRouter(context.Context, *apploadbalancer.HttpRouter) (*protooperation.Operation, error)
 	UpdateHTTPRouter(context.Context, *apploadbalancer.HttpRouter) (*protooperation.Operation, error)
 	DeleteHTTPRouter(context.Context, *apploadbalancer.HttpRouter) (*protooperation.Operation, error)
+	ListHTTPRouterIncompleteOperations(ctx context.Context, router *apploadbalancer.HttpRouter) ([]*protooperation.Operation, error)
 
 	CreateLoadBalancer(context.Context, *apploadbalancer.LoadBalancer) (*protooperation.Operation, error)
 	UpdateLoadBalancer(context.Context, *apploadbalancer.LoadBalancer) (*protooperation.Operation, error)
 	DeleteLoadBalancer(context.Context, *apploadbalancer.LoadBalancer) (*protooperation.Operation, error)
+	ListLoadBalancerIncompleteOperations(ctx context.Context, balancer *apploadbalancer.LoadBalancer) ([]*protooperation.Operation, error)
 }
 
 type backendGroupUpdatePredicate interface {

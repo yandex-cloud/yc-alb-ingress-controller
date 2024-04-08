@@ -66,6 +66,7 @@ func TestTargetGroupDeployer(t *testing.T) {
 		expTG := makeTargetGroup("tg", t1, t3)
 		repo.EXPECT().FindTargetGroup(gomock.Any(), "tg").Return(tg, nil)
 		repo.EXPECT().UpdateTargetGroup(gomock.Any(), expTG).Return(fakeOp, nil)
+		repo.EXPECT().ListTargetGroupOperations(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
 
 		d := NewServiceDeployer(repo)
 		_, err := d.Deploy(ctx, expTG)
@@ -93,6 +94,7 @@ func TestTargetGroupDeployer(t *testing.T) {
 		expTG := makeTargetGroup("tg", t1, t3)
 		repo.EXPECT().FindTargetGroup(gomock.Any(), "tg").Return(tg, nil)
 		repo.EXPECT().UpdateTargetGroup(gomock.Any(), expTG).Return(nil, fmt.Errorf("error"))
+		repo.EXPECT().ListTargetGroupOperations(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
 
 		d := NewServiceDeployer(repo)
 		_, err := d.Deploy(ctx, expTG)
@@ -107,6 +109,7 @@ func TestTargetGroupDeployer(t *testing.T) {
 		tg := makeTargetGroup("tg", t1)
 		expTG := makeTargetGroup("tg", t1)
 		repo.EXPECT().FindTargetGroup(gomock.Any(), "tg").Return(tg, nil)
+		repo.EXPECT().ListTargetGroupOperations(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
 
 		d := NewServiceDeployer(repo)
 		_, err := d.Deploy(ctx, expTG)

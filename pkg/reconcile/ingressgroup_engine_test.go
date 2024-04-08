@@ -1,6 +1,7 @@
 package reconcile
 
 import (
+	"context"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -193,20 +194,25 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		f := newFixture()
 		d := data(f)
-		ctrl := gomock.NewController(t)
-		p := mocks.NewMockUpdatePredicates(ctrl)
-		repo := mocks.NewMockRepository(ctrl)
 		b := &apploadbalancer.LoadBalancer{Id: "B_1", Status: apploadbalancer.LoadBalancer_ACTIVE}
+
+		ctrl := gomock.NewController(t)
+
+		p := mocks.NewMockUpdatePredicates(ctrl)
 		p.EXPECT().BalancerNeedsUpdate(b, d.Balancer).Return(true)
+
+		repo := mocks.NewMockRepository(ctrl)
 		repo.EXPECT().UpdateLoadBalancer(gomock.Any(), d.Balancer).Return(&protooperation.Operation{
 			Id:       "OP_1",
 			Metadata: fakeMeta(t, &apploadbalancer.UpdateLoadBalancerMetadata{LoadBalancerId: "B_1"})}, nil)
+		repo.EXPECT().ListLoadBalancerOperations(gomock.Any(), gomock.Any()).Return(nil, nil)
+
 		r := &IngressGroupEngine{
 			Data:       d,
 			Repo:       repo,
 			Predicates: p,
 		}
-		_, err := r.ReconcileBalancer(b)
+		_, err := r.ReconcileBalancer(context.Background(), b)
 		require.Error(t, err, "ReconcileBalancer() error = %v)", err)
 		assert.True(t, errors.As(err, &errors2.OperationIncompleteError{}), "wrong error type %T", err)
 	})
@@ -222,7 +228,7 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 			Repo:       repo,
 			Predicates: p,
 		}
-		_, err := r.ReconcileBalancer(b)
+		_, err := r.ReconcileBalancer(context.Background(), b)
 		require.Error(t, err, "ReconcileBalancer() error = %v)", err)
 		assert.True(t, errors.As(err, &errors2.YCResourceNotReadyError{}), "wrong error type %T", err)
 	})
@@ -240,7 +246,7 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 			Repo:       repo,
 			Predicates: p,
 		}
-		_, err := r.ReconcileBalancer(nil)
+		_, err := r.ReconcileBalancer(context.Background(), nil)
 		require.Error(t, err, "ReconcileBalancer() error = %v)", err)
 		assert.True(t, errors.As(err, &errors2.OperationIncompleteError{}), "wrong error type %T", err)
 	})
@@ -257,7 +263,7 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileBalancer(b)
+		ret, err := r.ReconcileBalancer(context.Background(), b)
 		require.NoError(t, err, "ReconcileBalancer() error = %v)", err)
 		assert.Equal(t, &deploy.ReconciledBalancer{
 			Garbage: b,
@@ -276,7 +282,7 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 			Repo:       repo,
 			Predicates: p,
 		}
-		_, err := r.ReconcileBalancer(b)
+		_, err := r.ReconcileBalancer(context.Background(), b)
 		require.Error(t, err, "ReconcileBalancer() error = %v)", err)
 		assert.True(t, errors.As(err, &errors2.YCResourceNotReadyError{}), "wrong error type %T", err)
 	})
@@ -288,12 +294,13 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 		repo := mocks.NewMockRepository(ctrl)
 		b := &apploadbalancer.LoadBalancer{Id: "B_1", Status: apploadbalancer.LoadBalancer_ACTIVE}
 		p.EXPECT().BalancerNeedsUpdate(b, d.Balancer).Return(false)
+		repo.EXPECT().ListLoadBalancerOperations(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
 		r := &IngressGroupEngine{
 			Data:       d,
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileBalancer(b)
+		ret, err := r.ReconcileBalancer(context.Background(), b)
 		require.NoError(t, err, "ReconcileBalancer() error = %v)", err)
 		assert.Equal(t, &deploy.ReconciledBalancer{
 			Active: b,
@@ -316,12 +323,14 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 			Id:       "OP_1",
 			Metadata: fakeMeta(t, &apploadbalancer.UpdateHttpRouterMetadata{HttpRouterId: "HTTP_R_1"}),
 		}, nil)
+		repo.EXPECT().ListHTTPRouterOperations(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
+
 		r := &IngressGroupEngine{
 			Data:       d,
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileHTTPRouter(router)
+		ret, err := r.ReconcileHTTPRouter(context.Background(), router)
 		require.NoError(t, err, "ReconcileHttpRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
@@ -345,7 +354,8 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileHTTPRouter(nil)
+
+		ret, err := r.ReconcileHTTPRouter(context.Background(), nil)
 		require.NoError(t, err, "ReconcileHttpRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
@@ -367,7 +377,7 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileHTTPRouter(router)
+		ret, err := r.ReconcileHTTPRouter(context.Background(), router)
 		require.NoError(t, err, "ReconcileHttpRouter() error = %v)", err)
 		assert.Equal(t, &deploy.ReconciledHTTPRouter{Garbage: router}, ret)
 	})
@@ -381,12 +391,15 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 		p := mocks.NewMockUpdatePredicates(ctrl)
 		p.EXPECT().RouterNeedsUpdate(router, d.HTTPHosts.Router).Return(false)
 		repo := mocks.NewMockRepository(ctrl)
+		repo.EXPECT().ListHTTPRouterOperations(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
+
 		r := &IngressGroupEngine{
 			Data:       d,
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileHTTPRouter(router)
+
+		ret, err := r.ReconcileHTTPRouter(context.Background(), router)
 		require.NoError(t, err, "ReconcileHttpRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
@@ -404,17 +417,20 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
 		p.EXPECT().RouterNeedsUpdate(router, d.TLSHosts.Router).Return(true)
+
 		repo := mocks.NewMockRepository(ctrl)
 		repo.EXPECT().UpdateHTTPRouter(gomock.Any(), d.TLSHosts.Router).Return(&protooperation.Operation{
 			Id:       "OP_1",
 			Metadata: fakeMeta(t, &apploadbalancer.UpdateHttpRouterMetadata{HttpRouterId: "HTTP_R_1"}),
 		}, nil)
+		repo.EXPECT().ListHTTPRouterOperations(gomock.Any(), gomock.Any()).Return(nil, nil)
+
 		r := &IngressGroupEngine{
 			Data:       d,
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileTLSRouter(router)
+		ret, err := r.ReconcileTLSRouter(context.Background(), router)
 		require.NoError(t, err, "ReconcileTLSRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
@@ -439,7 +455,7 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileTLSRouter(nil)
+		ret, err := r.ReconcileTLSRouter(context.Background(), nil)
 		require.NoError(t, err, "ReconcileTLSRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
@@ -462,7 +478,7 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileTLSRouter(router)
+		ret, err := r.ReconcileTLSRouter(context.Background(), router)
 		require.NoError(t, err, "ReconcileTLSRouter() error = %v)", err)
 		assert.Equal(t, &deploy.ReconciledHTTPRouter{Garbage: router}, ret)
 	})
@@ -475,13 +491,16 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
 		p.EXPECT().RouterNeedsUpdate(router, d.TLSHosts.Router).Return(false)
+
 		repo := mocks.NewMockRepository(ctrl)
+		repo.EXPECT().ListHTTPRouterOperations(gomock.Any(), gomock.Any()).Return(nil, nil)
+
 		r := &IngressGroupEngine{
 			Data:       d,
 			Repo:       repo,
 			Predicates: p,
 		}
-		ret, err := r.ReconcileTLSRouter(router)
+		ret, err := r.ReconcileTLSRouter(context.Background(), router)
 		require.NoError(t, err, "ReconcileTLSRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
