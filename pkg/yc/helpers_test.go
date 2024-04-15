@@ -208,7 +208,8 @@ func TestBalancerNeedsUpdate(t *testing.T) {
 						{
 							Address: &apploadbalancer.Address_InternalIpv4Address{
 								InternalIpv4Address: &apploadbalancer.InternalIpv4Address{
-									Address: "8.8.8.8",
+									Address:  "8.8.8.8",
+									SubnetId: "subnet-id",
 								},
 							},
 						},
@@ -233,7 +234,9 @@ func TestBalancerNeedsUpdate(t *testing.T) {
 					Addresses: []*apploadbalancer.Address{
 						{
 							Address: &apploadbalancer.Address_InternalIpv4Address{
-								InternalIpv4Address: &apploadbalancer.InternalIpv4Address{},
+								InternalIpv4Address: &apploadbalancer.InternalIpv4Address{
+									SubnetId: "subnet-id",
+								},
 							},
 						},
 					},

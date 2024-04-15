@@ -18,8 +18,9 @@ type OperationWaiter struct {
 }
 
 const (
-	ipv4Regex = "((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}"
-	ipv6Regex = `(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
+	ipv4Regex                         = "((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}"
+	ipv6Regex                         = `(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
+	completeInternalAddrRegexpPattern = "internal_ipv4_address:\\s*{(address:\"([0-9]{1,3}\\.){3}[0-9]{1,3}\"\\s*subnet_id:\"[a-zA-Z]+\"|subnet_id:\"[a-zA-Z]+\"\\s*address:\"([0-9]{1,3}\\.){3}[0-9]{1,3}\")}"
 )
 
 func (sdk OperationWaiter) Result(op *operation.Operation, err error) (proto.Message, error) {
@@ -76,12 +77,22 @@ func listenersNeedUpdate(listeners []*apploadbalancer.Listener, specs []*appload
 }
 
 func serializeExpEp(ep *apploadbalancer.Endpoint) string {
+	s := ep.String()
+
+	// only the internal address contains subnet field, so the logic to check if it's set to right value is more complex
+	// if endpoint has internal address and ip is set by user, this condition will be true, so we don't need to do anything
+	// otherwise we replace static part with the complete internal address regex pattern.
+	// In result string we have garbage - id of substring and some other symbols, but we don't really care,
+	// because the resulting pattern is still matching target string
+	if !regexp.MustCompile(completeInternalAddrRegexpPattern).MatchString(s) {
+		s = strings.ReplaceAll(s, "internal_ipv4_address:{subnet", completeInternalAddrRegexpPattern+"|")
+	}
+
 	r := strings.NewReplacer("external_ipv4_address:{}", fmt.Sprintf("external_ipv4_address:{address:\"%s\"}", ipv4Regex),
-		"internal_ipv4_address:{}", fmt.Sprintf("internal_ipv4_address:{address:\"%s\"}", ipv4Regex),
 		"external_ipv6_address:{}", fmt.Sprintf("external_ipv6_address:{address:\"%s\"}", ipv6Regex),
 	)
 
-	return r.Replace(ep.String())
+	return r.Replace(s)
 }
 
 func listenerEndpointsNeedUpdate(act, exp []*apploadbalancer.Endpoint) bool {
@@ -100,6 +111,8 @@ func listenerEndpointsNeedUpdate(act, exp []*apploadbalancer.Endpoint) bool {
 
 		found, _ := regexp.MatchString(pattern, actExpString)
 		if !found {
+			fmt.Printf("dbg: Listener needs update: act %v, exp %v; pattern: %s, expstring: %s \n", act, exp, pattern, actExpString)
+
 			return true
 		}
 	}

@@ -5,8 +5,6 @@ IMG_NAME?=yc-alb-ingress-controller
 TAG?=$(shell git rev-parse --short HEAD)
 ifdef REGISTRY_ID
 	IMG = $(REGISTRY_HOST)/${REGISTRY_ID}/$(IMG_NAME):${TAG}
-	TEST_IMG = $(REGISTRY_HOST)/${REGISTRY_ID}/testapp
-	TEST_IMG_GRPC = $(REGISTRY_HOST)/${REGISTRY_ID}/grpc-testapp
 endif
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -133,19 +131,6 @@ unpatch: check_FOLDER_ID
 		--patch '[{"op": "add", "path": "/spec/template/spec/containers/0/args/0", "value": "--folder-id='${FOLDER_ID}'"},{"op": "add", "path": "/spec/template/spec/containers/0/args/1", "value": "--endpoint='"$${ENDPOINT:-$(PROD_ENDPOINT)}"'"}]' || true
 	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit set image controller=controller
 	rm -f ${PROJECT_DIR}/config/default/ingress-key.json
-
-%-release: export REGISTRY_ID=crpsjg1coh47p81vh2lc
-%-release: export IMG=$(REGISTRY_HOST)/$(REGISTRY_ID)/$(IMG_NAME):${VERSION}
-
-helm-release: check_VERSION check_REGISTRY_ID docker-build docker-push push-helm-release ## build and push helm release
-
-push-helm-release: check_VERSION
-	OLD_VERSION=$$(yq -r ".image.tag" ./helm/$(IMG_NAME)/values.yaml) && \
-	sed -i "s/$${OLD_VERSION}/$${VERSION}/g" ./helm/$(IMG_NAME)/values.yaml
-	sed -i "s/^version: \(.*\)/version: $${VERSION}/" ./helm/$(IMG_NAME)/Chart.yaml
-	HELM_EXPERIMENTAL_OCI=1 helm registry login $(REGISTRY_HOST) -u iam -p $$(yc iam create-token)
-	HELM_EXPERIMENTAL_OCI=1 helm package ./helm/yc-alb-ingress-controller
-	HELM_EXPERIMENTAL_OCI=1 helm push yc-alb-ingress-controller-chart-${VERSION}.tgz  oci://$(REGISTRY_HOST)/$(REGISTRY_ID)
 
 GO_EXCLUDE := /vendor/|/bin/|/genproto/|.pb.go|.gen.go|sensitive.go|validate.go
 GO_FILES_CMD := find . -name '*.go' | grep -v -E '$(GO_EXCLUDE)'
