@@ -48,6 +48,7 @@ const (
 	ModifyResponseHeaderRemove  = ModifyResponseHeaderPrefix + "remove"
 
 	DirectResponsePrefix = prefix + "/direct-response."
+	RedirectPrefix       = prefix + "/redirect."
 
 	DefaultIngressClass = "ingressclass.kubernetes.io/is-default-class"
 

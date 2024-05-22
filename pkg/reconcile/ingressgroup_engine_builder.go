@@ -190,6 +190,76 @@ func (d *DefaultEngineBuilder) directResponses(ing networking.Ingress) (map[stri
 	return result, nil
 }
 
+func parseIntValue(s string) (int, error) {
+	if s == "" {
+		return 0, nil
+	}
+
+	return strconv.Atoi(s)
+}
+
+func parseBoolValue(s string) (bool, error) {
+	if s == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(s)
+}
+
+func (d *DefaultEngineBuilder) redirects(ing networking.Ingress) (map[string]*apploadbalancer.RedirectAction, error) {
+	result := make(map[string]*apploadbalancer.RedirectAction)
+	annotations := ing.GetAnnotations()
+
+	for key, value := range annotations {
+		if !strings.HasPrefix(key, k8s.RedirectPrefix) {
+			continue
+		}
+
+		configs, err := k8s.ParseConfigsFromAnnotationValue(value)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing annotation %s value %s for ingress %s/%s: %w", ing.Name, ing.Namespace, key, value, err)
+		}
+
+		replacePort, err := parseIntValue(configs["replace_port"])
+		if err != nil {
+			return nil, fmt.Errorf("error parsing replace_port for ingress %s/%s : %w", ing.Namespace, ing.Name, err)
+		}
+
+		var path apploadbalancer.RedirectAction_Path
+		if configs["path"] == "replace_path" {
+			path = &apploadbalancer.RedirectAction_ReplacePath{
+				ReplacePath: configs["replace_path"],
+			}
+		}
+		if configs["path"] == "replace_prefix" {
+			path = &apploadbalancer.RedirectAction_ReplacePrefix{
+				ReplacePrefix: configs["replace_prefix"],
+			}
+		}
+
+		removeQuery, err := parseBoolValue(configs["remove_query"])
+		if err != nil {
+			return nil, fmt.Errorf("error parsing remove_query for ingress %s/%s : %w", ing.Namespace, ing.Name, err)
+		}
+
+		responseCode, ok := apploadbalancer.RedirectAction_RedirectResponseCode_value[configs["response_code"]]
+		if !ok {
+			return nil, fmt.Errorf("unknown redirect response_code for ingress %s/%s : %s", ing.Namespace, ing.Name, configs["response_code"])
+		}
+
+		result[strings.TrimPrefix(key, k8s.RedirectPrefix)] = &apploadbalancer.RedirectAction{
+			ReplaceScheme: configs["replace_scheme"],
+			ReplaceHost:   configs["replace_host"],
+			ReplacePort:   int64(replacePort),
+			Path:          path,
+			RemoveQuery:   removeQuery,
+			ResponseCode:  apploadbalancer.RedirectAction_RedirectResponseCode(responseCode),
+		}
+	}
+
+	return result, nil
+}
+
 func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders.VirtualHostData, *builders.VirtualHostData, error) {
 	d.factory.RestartVirtualHostIDGenerator()
 	httpVHBuilder := d.factory.VirtualHostBuilder(g.Tag, d.bgFinder)
@@ -212,6 +282,11 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			return nil, nil, err
 		}
 
+		redirectActions, err := d.redirects(ing)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error getting redirectActions: %w", err)
+		}
+
 		for _, rule := range ing.Spec.Rules {
 			if rule.HTTP == nil {
 				continue
@@ -229,6 +304,23 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 						return nil, nil, err
 					}
 					err = tlsVHBuilder.AddHTTPDirectResponse(rule.Host, path, directResponse)
+					if err != nil {
+						return nil, nil, err
+					}
+					continue
+				}
+
+				if path.Backend.Resource != nil && path.Backend.Resource.Kind == "Redirect" {
+					redirect, found := redirectActions[path.Backend.Resource.Name]
+					if !found {
+						return nil, nil, fmt.Errorf("redirect action for host %s and path %s not found", rule.Host, path.Path)
+					}
+
+					err = httpVHBuilder.AddRedirect(rule.Host, path, redirect)
+					if err != nil {
+						return nil, nil, err
+					}
+					err = tlsVHBuilder.AddRedirect(rule.Host, path, redirect)
 					if err != nil {
 						return nil, nil, err
 					}

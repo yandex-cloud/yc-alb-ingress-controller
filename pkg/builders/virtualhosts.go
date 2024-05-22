@@ -97,18 +97,6 @@ func httpDirectResponseRoute(name string, match *apploadbalancer.StringMatch, di
 	return httpRouteForAction(name, match, action)
 }
 
-func httpRedirectRoute(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-	var action apploadbalancer.HttpRoute_Action = &apploadbalancer.HttpRoute_Redirect{
-		Redirect: &apploadbalancer.RedirectAction{
-			ReplaceScheme: "https",
-			ReplacePort:   443,
-			RemoveQuery:   false,
-			ResponseCode:  apploadbalancer.RedirectAction_MOVED_PERMANENTLY,
-		},
-	}
-	return httpRouteForAction(name, match, action), nil
-}
-
 func httpRouteForAction(name string, match *apploadbalancer.StringMatch, action apploadbalancer.HttpRoute_Action) *apploadbalancer.Route {
 	return &apploadbalancer.Route{
 		Name: name,
@@ -155,6 +143,27 @@ func (b *VirtualHostBuilder) AddHTTPDirectResponse(host string, path networking.
 	})
 }
 
+func (b *VirtualHostBuilder) AddRedirect(host string, path networking.HTTPIngressPath, redirect *apploadbalancer.RedirectAction) error {
+	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
+	if err != nil {
+		return err
+	}
+
+	//do not overwrite route action with redirect
+	if _, ok := b.httpRouteMap[hp]; ok {
+		return nil
+	}
+
+	createHTTPRedirect := func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
+		var action apploadbalancer.HttpRoute_Action = &apploadbalancer.HttpRoute_Redirect{
+			Redirect: redirect,
+		}
+		return httpRouteForAction(name, match, action), nil
+	}
+
+	return b.addRoute(host, path, createHTTPRedirect)
+}
+
 func (b *VirtualHostBuilder) AddHTTPRedirect(host string, path networking.HTTPIngressPath) error {
 	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
 	if err != nil {
@@ -166,7 +175,19 @@ func (b *VirtualHostBuilder) AddHTTPRedirect(host string, path networking.HTTPIn
 		return nil
 	}
 
-	return b.addRoute(host, path, httpRedirectRoute)
+	createHTTPRedirect := func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
+		var action apploadbalancer.HttpRoute_Action = &apploadbalancer.HttpRoute_Redirect{
+			Redirect: &apploadbalancer.RedirectAction{
+				ReplaceScheme: "https",
+				ReplacePort:   443,
+				RemoveQuery:   false,
+				ResponseCode:  apploadbalancer.RedirectAction_MOVED_PERMANENTLY,
+			},
+		}
+		return httpRouteForAction(name, match, action), nil
+	}
+
+	return b.addRoute(host, path, createHTTPRedirect)
 }
 
 func (b *VirtualHostBuilder) SetOpts(routeOpts RouteResolveOpts, vhOpts VirtualHostResolveOpts, ingNamespace string) {
