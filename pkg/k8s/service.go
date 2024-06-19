@@ -97,7 +97,7 @@ func isServiceReferencedByHTTPBackendGroup(ctx context.Context, cli client.Clien
 	}
 
 	for _, bg := range bgs.Items {
-		if bg.Namespace != svc.Name {
+		if bg.Namespace != svc.Namespace {
 			continue
 		}
 
