@@ -348,7 +348,7 @@ type RouteOptsResolver struct{}
 
 func (r RouteOptsResolver) Resolve(
 	timeout, idleTimeout, prefixRewrite, upgradeTypes,
-	proto, useRegex string,
+	proto, useRegex, securityProfileID string,
 ) (RouteResolveOpts, error) {
 	var ret RouteResolveOpts
 	if len(timeout) > 0 {
@@ -393,12 +393,14 @@ func (r RouteOptsResolver) Resolve(
 		return RouteResolveOpts{}, fmt.Errorf("unsupported useRegex flag format %s", useRegex)
 	}
 
+	ret.SecurityProfileID = securityProfileID
+
 	return ret, nil
 }
 
 type VirtualHostOptsResolver struct{}
 
-func (r *VirtualHostOptsResolver) Resolve(removeHeader, renameHeader, appendHeader, replaceHeader, securityProfileID string) (VirtualHostResolveOpts, error) {
+func (r *VirtualHostOptsResolver) Resolve(removeHeader, renameHeader, appendHeader, replaceHeader string) (VirtualHostResolveOpts, error) {
 	var ret VirtualHostResolveOpts
 
 	var err error
@@ -433,6 +435,5 @@ func (r *VirtualHostOptsResolver) Resolve(removeHeader, renameHeader, appendHead
 		}
 	}
 
-	ret.SecurityProfileID = securityProfileID
 	return ret, nil
 }

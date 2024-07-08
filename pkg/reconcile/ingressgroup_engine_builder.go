@@ -137,6 +137,7 @@ func (d *DefaultEngineBuilder) routeOpts(ing networking.Ingress) (builders.Route
 		annotations[k8s.UpgradeTypes],
 		annotations[k8s.Protocol],
 		annotations[k8s.UseRegex],
+		annotations[k8s.SecurityProfileID],
 	)
 }
 
@@ -148,7 +149,6 @@ func (d *DefaultEngineBuilder) vhOpts(ing networking.Ingress) (builders.VirtualH
 		annotations[k8s.ModifyResponseHeaderRename],
 		annotations[k8s.ModifyResponseHeaderAppend],
 		annotations[k8s.ModifyResponseHeaderReplace],
-		annotations[k8s.SecurityProfileID],
 	)
 }
 
@@ -299,11 +299,11 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 						return nil, nil, fmt.Errorf("direct response action for host %s and path %s not found", rule.Host, path.Path)
 					}
 
-					err = httpVHBuilder.AddHTTPDirectResponse(rule.Host, path, directResponse)
+					err = httpVHBuilder.AddHTTPDirectResponse(rule.Host, path, directResponse, routeOpts)
 					if err != nil {
 						return nil, nil, err
 					}
-					err = tlsVHBuilder.AddHTTPDirectResponse(rule.Host, path, directResponse)
+					err = tlsVHBuilder.AddHTTPDirectResponse(rule.Host, path, directResponse, routeOpts)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -316,11 +316,11 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 						return nil, nil, fmt.Errorf("redirect action for host %s and path %s not found", rule.Host, path.Path)
 					}
 
-					err = httpVHBuilder.AddRedirect(rule.Host, path, redirect)
+					err = httpVHBuilder.AddRedirect(rule.Host, path, redirect, routeOpts)
 					if err != nil {
 						return nil, nil, err
 					}
-					err = tlsVHBuilder.AddRedirect(rule.Host, path, redirect)
+					err = tlsVHBuilder.AddRedirect(rule.Host, path, redirect, routeOpts)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -336,7 +336,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 						continue
 					}
 
-					err = httpVHBuilder.AddHTTPRedirect(rule.Host, path)
+					err = httpVHBuilder.AddHTTPRedirect(rule.Host, path, routeOpts)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -359,7 +359,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 					}
 
 					if routeOpts.BackendType != builders.GRPC {
-						err = httpVHBuilder.AddHTTPRedirect(rule.Host, path)
+						err = httpVHBuilder.AddHTTPRedirect(rule.Host, path, routeOpts)
 						if err != nil {
 							return nil, nil, err
 						}
