@@ -42,6 +42,7 @@ type VirtualHostBuilder struct {
 	createRouteCR createRouteWithSvcFn
 
 	modifyResponseOpts ModifyResponseOpts
+	securityProfileID  string
 
 	backendGroupFinder BackendGroupFinder
 }
@@ -67,12 +68,12 @@ type RouteResolveOpts struct {
 	UpgradeTypes  []string
 	BackendType   BackendType
 	UseRegex      bool
-
-	SecurityProfileID string
 }
 
 type VirtualHostResolveOpts struct {
 	ModifyResponse ModifyResponseOpts
+
+	SecurityProfileID string
 }
 
 func httpRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolveOpts, bgID string) *apploadbalancer.Route {
@@ -85,31 +86,18 @@ func httpRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolv
 			BackendGroupId: bgID,
 		},
 	}
-
-	var routeOptions = &apploadbalancer.RouteOptions{
-		SecurityProfileId: opts.SecurityProfileID,
-	}
-
-	return httpRouteForActionAndOptions(name, match, action, routeOptions)
+	return httpRouteForAction(name, match, action)
 }
 
-func httpDirectResponseRoute(name string, match *apploadbalancer.StringMatch, directResponse *apploadbalancer.DirectResponseAction, opts RouteResolveOpts) *apploadbalancer.Route {
+func httpDirectResponseRoute(name string, match *apploadbalancer.StringMatch, directResponse *apploadbalancer.DirectResponseAction) *apploadbalancer.Route {
 	action := &apploadbalancer.HttpRoute_DirectResponse{
 		DirectResponse: directResponse,
 	}
 
-	var routeOptions = &apploadbalancer.RouteOptions{
-		SecurityProfileId: opts.SecurityProfileID,
-	}
-
-	return httpRouteForActionAndOptions(name, match, action, routeOptions)
+	return httpRouteForAction(name, match, action)
 }
 
-func httpRouteForActionAndOptions(
-	name string, match *apploadbalancer.StringMatch,
-	action apploadbalancer.HttpRoute_Action,
-	opts *apploadbalancer.RouteOptions,
-) *apploadbalancer.Route {
+func httpRouteForAction(name string, match *apploadbalancer.StringMatch, action apploadbalancer.HttpRoute_Action) *apploadbalancer.Route {
 	return &apploadbalancer.Route{
 		Name: name,
 		Route: &apploadbalancer.Route_Http{
@@ -118,7 +106,6 @@ func httpRouteForActionAndOptions(
 				Action: action,
 			},
 		},
-		RouteOptions: opts,
 	}
 }
 
@@ -130,11 +117,6 @@ func grpcRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolv
 			BackendGroupId: bgID,
 		},
 	}
-
-	routeOptions := &apploadbalancer.RouteOptions{
-		SecurityProfileId: opts.SecurityProfileID,
-	}
-
 	return &apploadbalancer.Route{
 		Name: name,
 		Route: &apploadbalancer.Route_Grpc{
@@ -143,15 +125,10 @@ func grpcRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolv
 				Action: action,
 			},
 		},
-		RouteOptions: routeOptions,
 	}
 }
 
-func (b *VirtualHostBuilder) AddHTTPDirectResponse(
-	host string, path networking.HTTPIngressPath,
-	directResponse *apploadbalancer.DirectResponseAction,
-	routeOpts RouteResolveOpts,
-) error {
+func (b *VirtualHostBuilder) AddHTTPDirectResponse(host string, path networking.HTTPIngressPath, directResponse *apploadbalancer.DirectResponseAction) error {
 	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
 	if err != nil {
 		return err
@@ -162,15 +139,11 @@ func (b *VirtualHostBuilder) AddHTTPDirectResponse(
 	}
 
 	return b.addRoute(host, path, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		return httpDirectResponseRoute(name, match, directResponse, routeOpts), nil
+		return httpDirectResponseRoute(name, match, directResponse), nil
 	})
 }
 
-func (b *VirtualHostBuilder) AddRedirect(
-	host string, path networking.HTTPIngressPath,
-	redirect *apploadbalancer.RedirectAction,
-	routeOpts RouteResolveOpts,
-) error {
+func (b *VirtualHostBuilder) AddRedirect(host string, path networking.HTTPIngressPath, redirect *apploadbalancer.RedirectAction) error {
 	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
 	if err != nil {
 		return err
@@ -185,18 +158,13 @@ func (b *VirtualHostBuilder) AddRedirect(
 		var action apploadbalancer.HttpRoute_Action = &apploadbalancer.HttpRoute_Redirect{
 			Redirect: redirect,
 		}
-
-		var routeOptions = &apploadbalancer.RouteOptions{
-			SecurityProfileId: routeOpts.SecurityProfileID,
-		}
-
-		return httpRouteForActionAndOptions(name, match, action, routeOptions), nil
+		return httpRouteForAction(name, match, action), nil
 	}
 
 	return b.addRoute(host, path, createHTTPRedirect)
 }
 
-func (b *VirtualHostBuilder) AddHTTPRedirect(host string, path networking.HTTPIngressPath, opts RouteResolveOpts) error {
+func (b *VirtualHostBuilder) AddHTTPRedirect(host string, path networking.HTTPIngressPath) error {
 	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
 	if err != nil {
 		return err
@@ -216,12 +184,7 @@ func (b *VirtualHostBuilder) AddHTTPRedirect(host string, path networking.HTTPIn
 				ResponseCode:  apploadbalancer.RedirectAction_MOVED_PERMANENTLY,
 			},
 		}
-
-		var routeOptions = &apploadbalancer.RouteOptions{
-			SecurityProfileId: opts.SecurityProfileID,
-		}
-
-		return httpRouteForActionAndOptions(name, match, action, routeOptions), nil
+		return httpRouteForAction(name, match, action), nil
 	}
 
 	return b.addRoute(host, path, createHTTPRedirect)
@@ -278,6 +241,7 @@ func (b *VirtualHostBuilder) SetOpts(routeOpts RouteResolveOpts, vhOpts VirtualH
 		}
 	}
 
+	b.securityProfileID = vhOpts.SecurityProfileID
 	b.modifyResponseOpts = vhOpts.ModifyResponse
 	b.useRegex = routeOpts.UseRegex
 }
@@ -371,14 +335,15 @@ func buildModifyHeaderOpts(modifyResponse ModifyResponseOpts) []*apploadbalancer
 	return modifyResponseHeaders
 }
 
-func buildRouteOpts(modifyResponseOpts ModifyResponseOpts) *apploadbalancer.RouteOptions {
+func buildRouteOpts(modifyResponseOpts ModifyResponseOpts, securityProfileID string) *apploadbalancer.RouteOptions {
 	modifyResponseHeaders := buildModifyHeaderOpts(modifyResponseOpts)
-	if len(modifyResponseHeaders) == 0 {
+	if len(modifyResponseHeaders) == 0 && securityProfileID == "" {
 		return nil
 	}
 
 	return &apploadbalancer.RouteOptions{
 		ModifyResponseHeaders: modifyResponseHeaders,
+		SecurityProfileId:     securityProfileID,
 	}
 }
 
@@ -400,7 +365,7 @@ func (b *VirtualHostBuilder) Build() *VirtualHostData {
 			Name:         b.names.VirtualHostForID(b.tag, b.nextVHID.Next()),
 			Authority:    []string{host.Host},
 			Routes:       routeMap[host.Host],
-			RouteOptions: buildRouteOpts(b.modifyResponseOpts),
+			RouteOptions: buildRouteOpts(b.modifyResponseOpts, b.securityProfileID),
 		}
 	}
 

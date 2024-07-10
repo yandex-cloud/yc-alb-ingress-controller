@@ -282,12 +282,14 @@ func TestVirtualHostOptsResolver_Resolve(t *testing.T) {
 		wantErr         bool
 	}{
 		{
-			desc:          "OK",
-			removeHeader:  "toRemove=true,notToRemove=false",
-			replaceHeader: "toReplace=replace,toReplaceTwo=replace_two",
-			renameHeader:  "toRename=rename",
-			appendHeader:  "toAppend=append",
+			desc:            "OK",
+			removeHeader:    "toRemove=true,notToRemove=false",
+			replaceHeader:   "toReplace=replace,toReplaceTwo=replace_two",
+			renameHeader:    "toRename=rename",
+			appendHeader:    "toAppend=append",
+			securityProfile: "security-profile-id",
 			exp: VirtualHostResolveOpts{
+				SecurityProfileID: "security-profile-id",
 				ModifyResponse: ModifyResponseOpts{
 					Append: map[string]string{
 						"toAppend": "append",
@@ -323,7 +325,7 @@ func TestVirtualHostOptsResolver_Resolve(t *testing.T) {
 	for _, tc := range testData {
 		r := resolvers.VirtualHostOpts()
 		t.Run(tc.desc, func(t *testing.T) {
-			ret, err := r.Resolve(tc.removeHeader, tc.renameHeader, tc.appendHeader, tc.replaceHeader)
+			ret, err := r.Resolve(tc.removeHeader, tc.renameHeader, tc.appendHeader, tc.replaceHeader, tc.securityProfile)
 			require.True(t, (err != nil) == tc.wantErr, "Result() error = %v)", err)
 			if !tc.wantErr {
 				assert.Equal(t, tc.exp, ret)
@@ -334,34 +336,31 @@ func TestVirtualHostOptsResolver_Resolve(t *testing.T) {
 
 func TestRouteOptsResolver(t *testing.T) {
 	testData := []struct {
-		desc              string
-		timeout           string
-		idleTimeout       string
-		prefixRewrite     string
-		upgradeTypes      string
-		proto             string
-		useRegex          string
-		securityProfileID string
-		exp               RouteResolveOpts
-		wantErr           bool
+		desc          string
+		timeout       string
+		idleTimeout   string
+		prefixRewrite string
+		upgradeTypes  string
+		proto         string
+		useRegex      string
+		exp           RouteResolveOpts
+		wantErr       bool
 	}{
 		{
-			desc:              "OK",
-			timeout:           "10s",
-			idleTimeout:       "1m",
-			prefixRewrite:     "/apis/v1",
-			upgradeTypes:      "websocket,other",
-			proto:             "http2",
-			useRegex:          "true",
-			securityProfileID: "sec-prof-id",
+			desc:          "OK",
+			timeout:       "10s",
+			idleTimeout:   "1m",
+			prefixRewrite: "/apis/v1",
+			upgradeTypes:  "websocket,other",
+			proto:         "http2",
+			useRegex:      "true",
 			exp: RouteResolveOpts{
-				Timeout:           &durationpb.Duration{Seconds: 10},
-				IdleTimeout:       &durationpb.Duration{Seconds: 60},
-				PrefixRewrite:     "/apis/v1",
-				UpgradeTypes:      []string{"websocket", "other"},
-				BackendType:       HTTP2,
-				UseRegex:          true,
-				SecurityProfileID: "sec-prof-id",
+				Timeout:       &durationpb.Duration{Seconds: 10},
+				IdleTimeout:   &durationpb.Duration{Seconds: 60},
+				PrefixRewrite: "/apis/v1",
+				UpgradeTypes:  []string{"websocket", "other"},
+				BackendType:   HTTP2,
+				UseRegex:      true,
 			},
 			wantErr: false,
 		},
@@ -392,7 +391,7 @@ func TestRouteOptsResolver(t *testing.T) {
 	for _, tc := range testData {
 		r := resolvers.RouteOpts()
 		t.Run(tc.desc, func(t *testing.T) {
-			ret, err := r.Resolve(tc.timeout, tc.idleTimeout, tc.prefixRewrite, tc.upgradeTypes, tc.proto, tc.useRegex, tc.securityProfileID)
+			ret, err := r.Resolve(tc.timeout, tc.idleTimeout, tc.prefixRewrite, tc.upgradeTypes, tc.proto, tc.useRegex)
 			require.True(t, (err != nil) == tc.wantErr, "Result() error = %v)", err)
 			if !tc.wantErr {
 				assert.Equal(t, tc.exp, ret)

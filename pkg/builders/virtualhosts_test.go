@@ -158,8 +158,7 @@ func TestVirtualHosts(t *testing.T) {
 	)
 	var (
 		route0 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-0",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-0",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -176,8 +175,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		route1 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-1",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -194,8 +192,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		route2 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-2",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-2",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -212,8 +209,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		route3 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-3",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-3",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -234,8 +230,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		regexroute0 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-0",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-0",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -252,8 +247,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		regexroute1 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-1",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -270,8 +264,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		regexroute2 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-2",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-2",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -292,8 +285,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		appendedRoute0 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-1", //should be added second
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1", //should be added second
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -310,8 +302,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		appendedRoute1 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-1", //should be added second
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1", //should be added second
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -328,8 +319,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		emptyPathRoute = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-0",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-0",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{},
@@ -344,8 +334,7 @@ func TestVirtualHosts(t *testing.T) {
 	)
 	var (
 		routeGRPC0 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-0",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-0",
 			Route: &apploadbalancer.Route_Grpc{
 				Grpc: &apploadbalancer.GrpcRoute{
 					Match: &apploadbalancer.GrpcRouteMatch{
@@ -362,8 +351,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		routeGRPC1 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-1",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1",
 			Route: &apploadbalancer.Route_Grpc{
 				Grpc: &apploadbalancer.GrpcRoute{
 					Match: &apploadbalancer.GrpcRouteMatch{
@@ -380,8 +368,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		routeGRPC2 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-2",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-2",
 			Route: &apploadbalancer.Route_Grpc{
 				Grpc: &apploadbalancer.GrpcRoute{
 					Match: &apploadbalancer.GrpcRouteMatch{
@@ -398,8 +385,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		routeGRPC3 = &apploadbalancer.Route{
-			Name:         "route-07544a934fcd54e50ab30eacf66de8ce94960357-3",
-			RouteOptions: &apploadbalancer.RouteOptions{},
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-3",
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -719,7 +705,7 @@ func TestVirtualHosts(t *testing.T) {
 			}
 			for _, r := range tc.redirectRules {
 				for _, p := range r.HTTP.Paths {
-					err := b.AddHTTPRedirect(r.Host, p, RouteResolveOpts{})
+					err := b.AddHTTPRedirect(r.Host, p)
 					require.NoError(t, err)
 				}
 			}
