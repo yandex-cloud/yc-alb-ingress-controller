@@ -1,3 +1,7 @@
+ifneq (,$(wildcard ./.env))
+	include .env
+	export
+endif
 
 # temporarily support only Yandex Container registry to avoid providing imagePullSecrets
 REGISTRY_HOST?=cr.yandex
@@ -63,9 +67,6 @@ test: manifests generate fmt vet ## Run tests.
 
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
-
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ${PROJECT_DIR}/main.go
 
 docker-build: check_IMG test ## Build docker image with the manager.
 	cd ${PROJECT_DIR} && docker build --platform linux/amd64 --build-arg CREATED_AT="$$(date --rfc-3339=seconds)" --build-arg COMMIT=$$(git rev-parse HEAD) -t ${IMG} .
