@@ -62,8 +62,9 @@ func TestServiceLoader_Load(t *testing.T) {
 
 	basicIngress := networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "basic-ing",
-			Namespace: "basic-ns",
+			Name:        "basic-ing",
+			Namespace:   "basic-ns",
+			Annotations: map[string]string{AlbTag: "default"},
 		},
 		Spec: networking.IngressSpec{
 			Rules: []networking.IngressRule{

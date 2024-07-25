@@ -244,6 +244,10 @@ func (r *GroupReconciler) setupIngressClassesWatch(c controller.Controller, cli 
 
 		result := make([]reconcile.Request, 0)
 		for _, item := range ingList.Items {
+			if !k8s.HasBalancerTag(&item) {
+				continue
+			}
+
 			if item.Spec.IngressClassName == nil && class.Annotations[k8s.DefaultIngressClass] != "true" {
 				continue
 			}
@@ -282,8 +286,7 @@ func (r *GroupReconciler) setupIngressWatches(c controller.Controller) error {
 		}
 	}
 	filterFn := func(o client.Object) bool {
-		_, ok := o.GetAnnotations()[k8s.AlbTag]
-		return ok
+		return k8s.HasBalancerTag(o)
 	}
 	err := c.Watch(&source.Kind{Type: &networking.Ingress{}}, handler.EnqueueRequestsFromMapFunc(mapFn), predicate.NewPredicateFuncs(filterFn))
 	if err != nil {

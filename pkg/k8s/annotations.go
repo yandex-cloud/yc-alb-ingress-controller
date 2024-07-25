@@ -62,6 +62,11 @@ func GetBalancerTag(o metav1.Object) string {
 	return defaultTag
 }
 
+func HasBalancerTag(o metav1.Object) bool {
+	_, ok := o.GetAnnotations()[AlbTag]
+	return ok
+}
+
 func ParseConfigsFromAnnotationValue(s string) (map[string]string, error) {
 	if len(s) == 0 {
 		return nil, nil

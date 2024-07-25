@@ -43,6 +43,7 @@ func TestLoader_Basic(t *testing.T) {
 
 func TestLoader_WithOrder(t *testing.T) {
 	empty := v1.Ingress{}
+	empty.ObjectMeta.Annotations = map[string]string{AlbTag: "default"}
 	ing10 := ingWithOrder("1")
 	ing11 := ingWithOrder("1")
 	ing2 := ingWithOrder("2")
@@ -153,6 +154,14 @@ func TestLoader_LoadWithClasses(t *testing.T) {
 	noMoreManagedIng.Name = "no-more-managed"
 	noMoreManagedIng.Finalizers = append(noMoreManagedIng.Finalizers, Finalizer)
 
+	noMoreManagedIngNotDefault := ingWithClass("not-default-wrong")
+	noMoreManagedIngNotDefault.ObjectMeta.Annotations[AlbTag] = "not-default"
+	noMoreManagedIngNotDefault.Finalizers = append(noMoreManagedIngNotDefault.Finalizers, Finalizer)
+
+	ingWithoutAlbTag := ingWithName("without-alb-tag")
+	ingWithoutAlbTag.Finalizers = append(ingWithoutAlbTag.Finalizers, Finalizer)
+	delete(ingWithoutAlbTag.ObjectMeta.Annotations, AlbTag)
+
 	var testData = []struct {
 		desc    string
 		objs    []client.Object
@@ -192,11 +201,21 @@ func TestLoader_LoadWithClasses(t *testing.T) {
 		{
 			desc: "mixed",
 			objs: []client.Object{&ingWithoutClass, &correctIng, &incorrectIng, &correctIngDefault, &noMoreManagedIng,
-				&notdefaultClass, &notdefaultClassWrongControllerName, &defaultClass},
+				&notdefaultClass, &notdefaultClassWrongControllerName, &defaultClass, &ingWithoutAlbTag},
 			exp: IngressGroup{
 				Items:   []v1.Ingress{correctIngDefault, correctIng, ingWithoutClass},
-				Deleted: []v1.Ingress{noMoreManagedIng},
+				Deleted: []v1.Ingress{noMoreManagedIng, ingWithoutAlbTag},
 			},
+		},
+		{
+			desc: "with-no-more-managed-not-default-ingress",
+			objs: []client.Object{&noMoreManagedIng, &noMoreManagedIngNotDefault},
+			exp:  IngressGroup{Deleted: []v1.Ingress{noMoreManagedIng}},
+		},
+		{
+			desc: "without-alb-tag",
+			objs: []client.Object{&ingWithoutAlbTag, &notdefaultClass},
+			exp:  IngressGroup{Deleted: []v1.Ingress{ingWithoutAlbTag}},
 		},
 	}
 	for _, entry := range testData {
@@ -221,6 +240,9 @@ func ingWithClass(class string) v1.Ingress {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ingress-with-class-" + class,
 			Namespace: "default",
+			Annotations: map[string]string{
+				AlbTag: "default",
+			},
 		},
 		Spec: v1.IngressSpec{
 			IngressClassName: &class,
@@ -241,16 +263,16 @@ func ingWithName(name string) v1.Ingress {
 }
 
 func ingWithOrder(order string) v1.Ingress {
-	ing := v1.Ingress{
+	return v1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "Ingress with order: " + order,
-			Namespace: "Default",
+			Name:      "ingress-with-order-" + order,
+			Namespace: "default",
+			Annotations: map[string]string{
+				OrderInGroup: order,
+				AlbTag:       "default",
+			},
 		},
 	}
-	ing.SetAnnotations(map[string]string{
-		OrderInGroup: order,
-	})
-	return ing
 }
 
 func assertGroupsEqual(t *testing.T, exp, act IngressGroup) {

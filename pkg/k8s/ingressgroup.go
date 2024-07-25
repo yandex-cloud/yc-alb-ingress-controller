@@ -80,8 +80,14 @@ func (l *Loader) Load(ctx context.Context, nsName types.NamespacedName) (*Ingres
 			continue
 		}
 
-		// ingress is delete or no more managed -> delete finalizer
-		if (!managed || deleted) && hasfinalizer {
+		// ingress no more managed -> delete finalizer
+		if hasfinalizer && !managed && !HasBalancerTag(&item) {
+			deletedItems = append(deletedItems, item)
+			continue
+		}
+
+		// ingress is deleted or no more managed (but was) and belongs to this group -> delete finalizer
+		if hasfinalizer && (!managed || deleted) && HasBalancerTag(&item) && belongsToGroup(item, tag) {
 			deletedItems = append(deletedItems, item)
 			continue
 		}
@@ -139,6 +145,10 @@ func sortIngressesByOrder(ings []ingressWithOrder) {
 }
 
 func IsIngressManagedByThisController(ing v1.Ingress, classes v1.IngressClassList) bool {
+	if !HasBalancerTag(&ing) {
+		return false
+	}
+
 	if len(classes.Items) == 0 {
 		return ing.Spec.IngressClassName == nil
 	}
