@@ -23,6 +23,7 @@ const (
 	IdleTimeout    = prefix + "/idle-timeout"
 	PrefixRewrite  = prefix + "/prefix-rewrite"
 	UpgradeTypes   = prefix + "/upgrade-types"
+	AllowedMethods = prefix + "/allowed-methods"
 
 	Protocol          = prefix + "/protocol"
 	TransportSecurity = prefix + "/transport-security"

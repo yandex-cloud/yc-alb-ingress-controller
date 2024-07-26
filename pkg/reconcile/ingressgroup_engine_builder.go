@@ -137,6 +137,7 @@ func (d *DefaultEngineBuilder) routeOpts(ing networking.Ingress) (builders.Route
 		annotations[k8s.UpgradeTypes],
 		annotations[k8s.Protocol],
 		annotations[k8s.UseRegex],
+		annotations[k8s.AllowedMethods],
 	)
 }
 

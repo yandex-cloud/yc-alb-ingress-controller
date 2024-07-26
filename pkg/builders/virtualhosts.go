@@ -35,8 +35,9 @@ type VirtualHostBuilder struct {
 	tag      string
 	folderID string
 
-	isTLS    bool
-	useRegex bool
+	isTLS          bool
+	useRegex       bool
+	allowedMethods []string
 
 	createRoute   createRouteWithSvcFn
 	createRouteCR createRouteWithSvcFn
@@ -62,12 +63,13 @@ type ModifyResponseOpts struct {
 }
 
 type RouteResolveOpts struct {
-	Timeout       *durationpb.Duration
-	IdleTimeout   *durationpb.Duration
-	PrefixRewrite string
-	UpgradeTypes  []string
-	BackendType   BackendType
-	UseRegex      bool
+	Timeout        *durationpb.Duration
+	IdleTimeout    *durationpb.Duration
+	PrefixRewrite  string
+	UpgradeTypes   []string
+	BackendType    BackendType
+	UseRegex       bool
+	AllowedMethods []string
 }
 
 type VirtualHostResolveOpts struct {
@@ -86,23 +88,23 @@ func httpRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolv
 			BackendGroupId: bgID,
 		},
 	}
-	return httpRouteForAction(name, match, action)
+	return httpRouteForAction(name, match, action, opts.AllowedMethods)
 }
 
-func httpDirectResponseRoute(name string, match *apploadbalancer.StringMatch, directResponse *apploadbalancer.DirectResponseAction) *apploadbalancer.Route {
+func httpDirectResponseRoute(name string, match *apploadbalancer.StringMatch, directResponse *apploadbalancer.DirectResponseAction, methods []string) *apploadbalancer.Route {
 	action := &apploadbalancer.HttpRoute_DirectResponse{
 		DirectResponse: directResponse,
 	}
 
-	return httpRouteForAction(name, match, action)
+	return httpRouteForAction(name, match, action, methods)
 }
 
-func httpRouteForAction(name string, match *apploadbalancer.StringMatch, action apploadbalancer.HttpRoute_Action) *apploadbalancer.Route {
+func httpRouteForAction(name string, match *apploadbalancer.StringMatch, action apploadbalancer.HttpRoute_Action, methods []string) *apploadbalancer.Route {
 	return &apploadbalancer.Route{
 		Name: name,
 		Route: &apploadbalancer.Route_Http{
 			Http: &apploadbalancer.HttpRoute{
-				Match:  &apploadbalancer.HttpRouteMatch{Path: match},
+				Match:  &apploadbalancer.HttpRouteMatch{Path: match, HttpMethod: methods},
 				Action: action,
 			},
 		},
@@ -139,7 +141,7 @@ func (b *VirtualHostBuilder) AddHTTPDirectResponse(host string, path networking.
 	}
 
 	return b.addRoute(host, path, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		return httpDirectResponseRoute(name, match, directResponse), nil
+		return httpDirectResponseRoute(name, match, directResponse, b.allowedMethods), nil
 	})
 }
 
@@ -158,7 +160,7 @@ func (b *VirtualHostBuilder) AddRedirect(host string, path networking.HTTPIngres
 		var action apploadbalancer.HttpRoute_Action = &apploadbalancer.HttpRoute_Redirect{
 			Redirect: redirect,
 		}
-		return httpRouteForAction(name, match, action), nil
+		return httpRouteForAction(name, match, action, b.allowedMethods), nil
 	}
 
 	return b.addRoute(host, path, createHTTPRedirect)
@@ -184,7 +186,7 @@ func (b *VirtualHostBuilder) AddHTTPRedirect(host string, path networking.HTTPIn
 				ResponseCode:  apploadbalancer.RedirectAction_MOVED_PERMANENTLY,
 			},
 		}
-		return httpRouteForAction(name, match, action), nil
+		return httpRouteForAction(name, match, action, b.allowedMethods), nil
 	}
 
 	return b.addRoute(host, path, createHTTPRedirect)
@@ -244,6 +246,8 @@ func (b *VirtualHostBuilder) SetOpts(routeOpts RouteResolveOpts, vhOpts VirtualH
 	b.securityProfileID = vhOpts.SecurityProfileID
 	b.modifyResponseOpts = vhOpts.ModifyResponse
 	b.useRegex = routeOpts.UseRegex
+
+	b.allowedMethods = routeOpts.AllowedMethods
 }
 
 func (b *VirtualHostBuilder) AddRoute(host string, path networking.HTTPIngressPath) error {

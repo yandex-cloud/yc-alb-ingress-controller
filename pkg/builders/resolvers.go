@@ -348,7 +348,7 @@ type RouteOptsResolver struct{}
 
 func (r RouteOptsResolver) Resolve(
 	timeout, idleTimeout, prefixRewrite, upgradeTypes,
-	proto, useRegex string,
+	proto, useRegex, allowedMethods string,
 ) (RouteResolveOpts, error) {
 	var ret RouteResolveOpts
 	if len(timeout) > 0 {
@@ -391,6 +391,10 @@ func (r RouteOptsResolver) Resolve(
 		ret.UseRegex = false
 	default:
 		return RouteResolveOpts{}, fmt.Errorf("unsupported useRegex flag format %s", useRegex)
+	}
+
+	if len(allowedMethods) > 0 {
+		ret.AllowedMethods = strings.Split(allowedMethods, ",")
 	}
 
 	return ret, nil

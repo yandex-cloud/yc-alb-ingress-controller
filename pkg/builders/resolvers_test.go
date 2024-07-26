@@ -336,31 +336,34 @@ func TestVirtualHostOptsResolver_Resolve(t *testing.T) {
 
 func TestRouteOptsResolver(t *testing.T) {
 	testData := []struct {
-		desc          string
-		timeout       string
-		idleTimeout   string
-		prefixRewrite string
-		upgradeTypes  string
-		proto         string
-		useRegex      string
-		exp           RouteResolveOpts
-		wantErr       bool
+		desc           string
+		timeout        string
+		idleTimeout    string
+		prefixRewrite  string
+		upgradeTypes   string
+		proto          string
+		useRegex       string
+		allowedMethods string
+		exp            RouteResolveOpts
+		wantErr        bool
 	}{
 		{
-			desc:          "OK",
-			timeout:       "10s",
-			idleTimeout:   "1m",
-			prefixRewrite: "/apis/v1",
-			upgradeTypes:  "websocket,other",
-			proto:         "http2",
-			useRegex:      "true",
+			desc:           "OK",
+			timeout:        "10s",
+			idleTimeout:    "1m",
+			prefixRewrite:  "/apis/v1",
+			upgradeTypes:   "websocket,other",
+			proto:          "http2",
+			useRegex:       "true",
+			allowedMethods: "GET,POST",
 			exp: RouteResolveOpts{
-				Timeout:       &durationpb.Duration{Seconds: 10},
-				IdleTimeout:   &durationpb.Duration{Seconds: 60},
-				PrefixRewrite: "/apis/v1",
-				UpgradeTypes:  []string{"websocket", "other"},
-				BackendType:   HTTP2,
-				UseRegex:      true,
+				Timeout:        &durationpb.Duration{Seconds: 10},
+				IdleTimeout:    &durationpb.Duration{Seconds: 60},
+				PrefixRewrite:  "/apis/v1",
+				UpgradeTypes:   []string{"websocket", "other"},
+				BackendType:    HTTP2,
+				UseRegex:       true,
+				AllowedMethods: []string{"GET", "POST"},
 			},
 			wantErr: false,
 		},
@@ -391,7 +394,7 @@ func TestRouteOptsResolver(t *testing.T) {
 	for _, tc := range testData {
 		r := resolvers.RouteOpts()
 		t.Run(tc.desc, func(t *testing.T) {
-			ret, err := r.Resolve(tc.timeout, tc.idleTimeout, tc.prefixRewrite, tc.upgradeTypes, tc.proto, tc.useRegex)
+			ret, err := r.Resolve(tc.timeout, tc.idleTimeout, tc.prefixRewrite, tc.upgradeTypes, tc.proto, tc.useRegex, tc.allowedMethods)
 			require.True(t, (err != nil) == tc.wantErr, "Result() error = %v)", err)
 			if !tc.wantErr {
 				assert.Equal(t, tc.exp, ret)
