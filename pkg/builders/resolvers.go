@@ -3,7 +3,9 @@ package builders
 import (
 	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -126,8 +128,63 @@ func parseConnectionSessionAffinity(affinity string) (*apploadbalancer.Connectio
 	}, nil
 }
 
+func parseHealthChecks(healthChecks string) ([]*apploadbalancer.HealthCheck, error) {
+	m, err := k8s.ParseConfigsFromAnnotationValue(healthChecks)
+	if err != nil {
+		return nil, err
+	}
+	healthCheck := healthCheckTemplate()
+
+	port, err := strconv.ParseInt(m["port"], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("port should be specified in health-checks")
+	}
+	healthCheck.HealthcheckPort = port
+
+	if httpPath, ok := m["http-path"]; ok {
+		healthCheck.Healthcheck = &apploadbalancer.HealthCheck_Http{
+			Http: &apploadbalancer.HealthCheck_HttpHealthCheck{
+				Path: httpPath,
+			},
+		}
+	}
+
+	if timeout, ok := m["timeout"]; ok {
+		duration, err := time.ParseDuration(timeout)
+		if err != nil {
+			return nil, fmt.Errorf("timeout must be time value, found: %s", timeout)
+		}
+		healthCheck.Timeout = convertDuration(&metav1.Duration{Duration: duration})
+	}
+
+	if interval, ok := m["interval"]; ok {
+		duration, err := time.ParseDuration(interval)
+		if err != nil {
+			return nil, fmt.Errorf("interval must be time value, found: %s", interval)
+		}
+		healthCheck.Interval = convertDuration(&metav1.Duration{Duration: duration})
+	}
+
+	if healthyThreshold, ok := m["healthy-threshold"]; ok {
+		healthCheck.HealthyThreshold, err = strconv.ParseInt(healthyThreshold, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("healthy-threshold must be number value, found: %s", healthyThreshold)
+		}
+	}
+
+	if unhealthyThreshold, ok := m["unhealthy-threshold"]; ok {
+		healthCheck.UnhealthyThreshold, err = strconv.ParseInt(unhealthyThreshold, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("unhealthy-threshold must be number value, found: %s", unhealthyThreshold)
+		}
+	}
+
+	return []*apploadbalancer.HealthCheck{healthCheck}, nil
+}
+
 func (r *BackendOptsResolver) Resolve(
-	protocol, balancingMode, transportSecurity, affinityHeader, affinityCookie, affinityConnection string) (BackendResolveOpts, error) {
+	protocol, balancingMode, transportSecurity, affinityHeader, affinityCookie, affinityConnection, healthChecks string,
+) (BackendResolveOpts, error) {
 	ret := BackendResolveOpts{
 		BalancingMode: balancingMode,
 	}
@@ -172,6 +229,15 @@ func (r *BackendOptsResolver) Resolve(
 		if err != nil {
 			return BackendResolveOpts{}, err
 		}
+	}
+
+	if healthChecks != "" {
+		ret.healthChecks, err = parseHealthChecks(healthChecks)
+		if err != nil {
+			return BackendResolveOpts{}, err
+		}
+	} else {
+		ret.healthChecks = defaultHealthChecks
 	}
 
 	return ret, nil

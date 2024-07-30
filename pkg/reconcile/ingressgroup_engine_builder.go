@@ -159,7 +159,7 @@ func (d *DefaultEngineBuilder) backendOpts(ing networking.Ingress) (builders.Bac
 	return r.Resolve(
 		annotations[k8s.Protocol], annotations[k8s.BalancingMode], annotations[k8s.TransportSecurity],
 		annotations[k8s.SessionAffinityHeader], annotations[k8s.SessionAffinityCookie],
-		annotations[k8s.SessionAffinityConnection],
+		annotations[k8s.SessionAffinityConnection], annotations[k8s.HealthChecks],
 	)
 }
 

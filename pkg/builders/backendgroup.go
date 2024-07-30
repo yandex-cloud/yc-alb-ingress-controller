@@ -3,7 +3,6 @@ package builders
 import (
 	"context"
 	"fmt"
-
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -33,19 +32,25 @@ const (
 
 const PathTypeRegex = "Regex"
 
-var defaultHealthChecks = []*apploadbalancer.HealthCheck{{
-	Timeout:         &durationpb.Duration{Seconds: 2},
-	Interval:        &durationpb.Duration{Seconds: 5},
-	HealthcheckPort: hcPort,
-	Healthcheck: &apploadbalancer.HealthCheck_Http{
-		Http: &apploadbalancer.HealthCheck_HttpHealthCheck{
-			Path: "/healthz",
+func healthCheckTemplate() *apploadbalancer.HealthCheck {
+	return &apploadbalancer.HealthCheck{
+		Timeout:            &durationpb.Duration{Seconds: 2},
+		Interval:           &durationpb.Duration{Seconds: 5},
+		HealthyThreshold:   1,
+		UnhealthyThreshold: 1,
+		HealthcheckPort:    hcPort,
+		Healthcheck: &apploadbalancer.HealthCheck_Http{
+			Http: &apploadbalancer.HealthCheck_HttpHealthCheck{
+				Path: "/healthz",
+			},
 		},
-	},
-	TransportSettings: &apploadbalancer.HealthCheck_Plaintext{
-		Plaintext: &apploadbalancer.PlaintextTransportSettings{},
-	},
-}}
+		TransportSettings: &apploadbalancer.HealthCheck_Plaintext{
+			Plaintext: &apploadbalancer.PlaintextTransportSettings{},
+		},
+	}
+}
+
+var defaultHealthChecks = []*apploadbalancer.HealthCheck{healthCheckTemplate()}
 
 type HostAndPath struct {
 	Host, Path, PathType string
@@ -79,6 +84,7 @@ type BackendResolveOpts struct {
 
 	BalancingMode string
 
+	healthChecks []*apploadbalancer.HealthCheck
 	affinityOpts SessionAffinityOpts
 }
 
@@ -143,7 +149,10 @@ func (b *BackendGroupBuilder) build(svc *core.Service, nodePorts []core.ServiceP
 
 		backend = &apploadbalancer.BackendGroup_Grpc{Grpc: &apploadbalancer.GrpcBackendGroup{Backends: backends, SessionAffinity: sessionAffinity}}
 	} else {
-		backends, err := b.buildHttpBackends(svc, tgID, nodePorts, balancingConfig, tls, opts.BackendType == HTTP2)
+		backends, err := b.buildHttpBackends(
+			svc, tgID, nodePorts, balancingConfig,
+			tls, opts.BackendType == HTTP2, opts.healthChecks,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -217,9 +226,17 @@ func (b *BackendGroupBuilder) backendOpts(svc *core.Service, ings []networking.I
 		}
 	}
 
+	healthChecks, ok := annotations[k8s.HealthChecks]
+	if !ok {
+		healthChecks, err = parseSvcAnnotationFromIngs(ings, k8s.HealthChecks)
+		if err != nil {
+			return BackendResolveOpts{}, err
+		}
+	}
+
 	return r.Resolve(
 		protocol, balancingMode, transportSecurity,
-		saHeader, saCookie, saConnection,
+		saHeader, saCookie, saConnection, healthChecks,
 	)
 }
 
@@ -276,6 +293,7 @@ func (b *BackendGroupBuilder) buildHttpBackends(
 	ports []core.ServicePort,
 	balancingConfig *apploadbalancer.LoadBalancingConfig,
 	tls *apploadbalancer.BackendTls, useHTTP2 bool,
+	healthChecks []*apploadbalancer.HealthCheck,
 ) ([]*apploadbalancer.HttpBackend, error) {
 	backends := make([]*apploadbalancer.HttpBackend, 0, len(ports))
 	for _, p := range ports {
@@ -285,7 +303,7 @@ func (b *BackendGroupBuilder) buildHttpBackends(
 			BackendType: &apploadbalancer.HttpBackend_TargetGroups{
 				TargetGroups: &apploadbalancer.TargetGroupsBackend{TargetGroupIds: []string{tgID}},
 			},
-			Healthchecks:        defaultHealthChecks,
+			Healthchecks:        healthChecks,
 			BackendWeight:       &wrappers.Int64Value{Value: 1},
 			LoadBalancingConfig: balancingConfig,
 			Tls:                 tls,

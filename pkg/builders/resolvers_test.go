@@ -2,8 +2,6 @@ package builders
 
 import (
 	"fmt"
-	"testing"
-
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,6 +9,7 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/vpc/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"testing"
 
 	"github.com/yandex-cloud/alb-ingress/pkg/builders/mocks"
 )
@@ -395,6 +394,140 @@ func TestRouteOptsResolver(t *testing.T) {
 		r := resolvers.RouteOpts()
 		t.Run(tc.desc, func(t *testing.T) {
 			ret, err := r.Resolve(tc.timeout, tc.idleTimeout, tc.prefixRewrite, tc.upgradeTypes, tc.proto, tc.useRegex, tc.allowedMethods)
+			require.True(t, (err != nil) == tc.wantErr, "Result() error = %v)", err)
+			if !tc.wantErr {
+				assert.Equal(t, tc.exp, ret)
+			}
+		})
+	}
+}
+
+func TestBackendOptsResolver(t *testing.T) {
+	hc1 := defaultHealthChecks
+
+	hc2 := healthCheckTemplate()
+	hc2.HealthcheckPort = 30102
+
+	hc3 := &apploadbalancer.HealthCheck{
+		Timeout:            &durationpb.Duration{Seconds: 10},
+		Interval:           &durationpb.Duration{Seconds: 20},
+		HealthyThreshold:   3,
+		UnhealthyThreshold: 2,
+		HealthcheckPort:    30103,
+		Healthcheck: &apploadbalancer.HealthCheck_Http{
+			Http: &apploadbalancer.HealthCheck_HttpHealthCheck{
+				Path: "/health-1",
+			},
+		},
+		TransportSettings: &apploadbalancer.HealthCheck_Plaintext{
+			Plaintext: &apploadbalancer.PlaintextTransportSettings{},
+		},
+	}
+
+	testData := []struct {
+		desc               string
+		protocol           string
+		balancingMode      string
+		transportSecurity  string
+		affinityHeader     string
+		affinityCookie     string
+		affinityConnection string
+		healthChecks       string
+		exp                BackendResolveOpts
+		wantErr            bool
+	}{
+		{
+			desc:           "OK, case 1",
+			protocol:       "http",
+			balancingMode:  "mode-1",
+			affinityHeader: "name=name-1",
+			exp: BackendResolveOpts{
+				BackendType:   HTTP,
+				Secure:        false,
+				BalancingMode: "mode-1",
+				healthChecks:  hc1,
+				affinityOpts: SessionAffinityOpts{
+					header: &apploadbalancer.HeaderSessionAffinity{
+						HeaderName: "name-1",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			desc:              "OK, case 2",
+			protocol:          "grpc",
+			balancingMode:     "mode-1",
+			transportSecurity: "tls",
+			affinityCookie:    "name=name-1,ttl=10s",
+			healthChecks:      "port=30102",
+			exp: BackendResolveOpts{
+				BackendType:   GRPC,
+				Secure:        true,
+				BalancingMode: "mode-1",
+				healthChecks:  []*apploadbalancer.HealthCheck{hc2},
+				affinityOpts: SessionAffinityOpts{
+					cookie: &apploadbalancer.CookieSessionAffinity{
+						Name: "name-1",
+						Ttl:  &durationpb.Duration{Seconds: 10},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			desc:               "OK, case 3",
+			protocol:           "http2",
+			balancingMode:      "mode-1",
+			affinityConnection: "source-ip=true",
+			healthChecks:       "port=30103,http-path=/health-1,timeout=10s,interval=20s,healthy-threshold=3,unhealthy-threshold=2",
+			exp: BackendResolveOpts{
+				BackendType:   HTTP2,
+				Secure:        false,
+				BalancingMode: "mode-1",
+				healthChecks:  []*apploadbalancer.HealthCheck{hc3},
+				affinityOpts: SessionAffinityOpts{
+					connection: &apploadbalancer.ConnectionSessionAffinity{
+						SourceIp: true,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			desc:               "Wrong, wrong affinity connection",
+			protocol:           "http2",
+			balancingMode:      "mode-1",
+			affinityConnection: "source-ip=wrong",
+			exp:                BackendResolveOpts{},
+			wantErr:            true,
+		},
+		{
+			desc:          "Wrong, wrong health checks timeout",
+			protocol:      "http2",
+			balancingMode: "mode-1",
+			healthChecks:  "port=30100,timeout=wrong",
+			exp:           BackendResolveOpts{},
+			wantErr:       true,
+		},
+		{
+			desc:          "Wrong, no port in health checks",
+			protocol:      "http76",
+			balancingMode: "mode-1",
+			healthChecks:  "timeout=10s",
+			exp:           BackendResolveOpts{},
+			wantErr:       true,
+		},
+	}
+
+	resolvers := NewResolvers(nil)
+	for _, tc := range testData {
+		r := resolvers.BackendOpts()
+		t.Run(tc.desc, func(t *testing.T) {
+			ret, err := r.Resolve(
+				tc.protocol, tc.balancingMode, tc.transportSecurity, tc.affinityHeader,
+				tc.affinityCookie, tc.affinityConnection, tc.healthChecks,
+			)
 			require.True(t, (err != nil) == tc.wantErr, "Result() error = %v)", err)
 			if !tc.wantErr {
 				assert.Equal(t, tc.exp, ret)

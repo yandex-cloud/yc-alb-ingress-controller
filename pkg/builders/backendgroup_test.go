@@ -88,6 +88,20 @@ func TestBackendGroups(t *testing.T) {
 			},
 		}
 
+		secureBGHC = []*apploadbalancer.HealthCheck{{
+			Timeout:         &durationpb.Duration{Seconds: 10},
+			Interval:        &durationpb.Duration{Seconds: 20},
+			HealthcheckPort: 30100,
+			Healthcheck: &apploadbalancer.HealthCheck_Http{
+				Http: &apploadbalancer.HealthCheck_HttpHealthCheck{
+					Path: "/health-1",
+				},
+			},
+			TransportSettings: &apploadbalancer.HealthCheck_Plaintext{
+				Plaintext: &apploadbalancer.PlaintextTransportSettings{},
+			},
+		}}
+
 		secureBG = &apploadbalancer.BackendGroup{
 			Name:     "bg-5d6f6ba020fd6ad14f8379b75035170ff8070c7c-30080",
 			FolderId: "my-folder",
@@ -101,7 +115,7 @@ func TestBackendGroups(t *testing.T) {
 							BackendType: &apploadbalancer.HttpBackend_TargetGroups{
 								TargetGroups: targetGroupsBackend,
 							},
-							Healthchecks: defaultHealthChecks,
+							Healthchecks: secureBGHC,
 							Tls:          &apploadbalancer.BackendTls{},
 						},
 						{
@@ -111,7 +125,7 @@ func TestBackendGroups(t *testing.T) {
 							BackendType: &apploadbalancer.HttpBackend_TargetGroups{
 								TargetGroups: targetGroupsBackend,
 							},
-							Healthchecks: defaultHealthChecks,
+							Healthchecks: secureBGHC,
 							Tls:          &apploadbalancer.BackendTls{},
 						},
 					},
@@ -189,6 +203,7 @@ func TestBackendGroups(t *testing.T) {
 		}{
 			{
 				desc: "basic",
+				opts: BackendResolveOpts{healthChecks: defaultHealthChecks},
 				svc:  svc1,
 				exp:  basicBG,
 				nodePorts: []v12.ServicePort{
@@ -201,7 +216,7 @@ func TestBackendGroups(t *testing.T) {
 				svc:  svc1,
 				exp:  grpcBG,
 				opts: BackendResolveOpts{
-					BackendType: GRPC,
+					BackendType: GRPC, healthChecks: defaultHealthChecks,
 				},
 				nodePorts: []v12.ServicePort{
 					port0080,
@@ -213,7 +228,7 @@ func TestBackendGroups(t *testing.T) {
 				svc:  svc1,
 				exp:  http2BG,
 				opts: BackendResolveOpts{
-					BackendType: HTTP2,
+					BackendType: HTTP2, healthChecks: defaultHealthChecks,
 				},
 				nodePorts: []v12.ServicePort{
 					port0080,
@@ -225,8 +240,9 @@ func TestBackendGroups(t *testing.T) {
 				svc:  svc1,
 				exp:  secureBG,
 				opts: BackendResolveOpts{
-					BackendType: HTTP,
-					Secure:      true,
+					BackendType:  HTTP,
+					Secure:       true,
+					healthChecks: secureBGHC,
 				},
 				nodePorts: []v12.ServicePort{
 					port0080,

@@ -27,6 +27,7 @@ const (
 
 	Protocol          = prefix + "/protocol"
 	TransportSecurity = prefix + "/transport-security"
+	HealthChecks      = prefix + "/health-checks"
 
 	UseRegex     = prefix + "/use-regex"
 	OrderInGroup = prefix + "/group-order"
