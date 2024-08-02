@@ -39,7 +39,7 @@ func (h *GroupStatusManager) AddBackendGroupID(ctx context.Context, status *v1al
 	}
 
 	oldStatus := status.DeepCopy()
-	status.TargetGroupIDs = append(status.TargetGroupIDs, bgID)
+	status.BackendGroupIDs = append(status.BackendGroupIDs, bgID)
 	return h.cli.Patch(ctx, status, client.MergeFrom(oldStatus))
 }
 
