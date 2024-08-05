@@ -259,22 +259,38 @@ func parseSvcAnnotationFromIngs(ings []networking.Ingress, annotation string) (s
 
 func collectPortsForService(svc *core.Service, ings []networking.Ingress) ([]core.ServicePort, error) {
 	nodePorts := make(map[core.ServicePort]struct{})
+	collectPortsForBackend := func(backend networking.IngressBackend) error {
+		if backend.Service == nil || backend.Service.Name != svc.Name {
+			return nil
+		}
+
+		ingressBackendPort := backend.Service.Port
+		svcBackendPorts := nodePortsForServicePort(ingressBackendPort.Name, ingressBackendPort.Number, svc.Spec.Ports)
+		if len(svcBackendPorts) == 0 {
+			return fmt.Errorf("service %s/%s doesn't expose its port %v",
+				svc.Namespace, svc.Name, ingressBackendPort)
+		}
+
+		for _, p := range svcBackendPorts {
+			nodePorts[p] = struct{}{}
+		}
+
+		return nil
+	}
+
 	for _, ing := range ings {
+		if ing.Spec.DefaultBackend != nil {
+			err := collectPortsForBackend(*ing.Spec.DefaultBackend)
+			if err != nil {
+				return nil, fmt.Errorf("error %w on ingresses %s/%s default backend", err, ing.Namespace, ing.Name)
+			}
+		}
+
 		for _, rule := range ing.Spec.Rules {
 			for _, path := range rule.HTTP.Paths {
-				if path.Backend.Service == nil || path.Backend.Service.Name != svc.Name {
-					continue
-				}
-
-				ingressBackendPort := path.Backend.Service.Port
-				svcBackendPorts := nodePortsForServicePort(ingressBackendPort.Name, ingressBackendPort.Number, svc.Spec.Ports)
-				if len(svcBackendPorts) == 0 {
-					return nil, fmt.Errorf("service %s/%s doesn't expose its port %v defined by path %s in ingress %s/%s",
-						svc.Namespace, svc.Name, ingressBackendPort, path.Path, ing.Namespace, ing.Name)
-				}
-
-				for _, p := range svcBackendPorts {
-					nodePorts[p] = struct{}{}
+				err := collectPortsForBackend(path.Backend)
+				if err != nil {
+					return nil, fmt.Errorf("error %w on ingress: %s/%s, path: %s", err, path.Path, ing.Namespace, ing.Name)
 				}
 			}
 		}

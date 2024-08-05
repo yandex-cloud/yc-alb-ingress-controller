@@ -59,6 +59,11 @@ func IsServiceReferencedByIngress(svc v1.Service, ing networking.Ingress) bool {
 		return false
 	}
 
+	if ing.Spec.DefaultBackend != nil && ing.Spec.DefaultBackend.Service != nil &&
+		ing.Spec.DefaultBackend.Service.Name == svc.Name {
+		return true
+	}
+
 	for _, rule := range ing.Spec.Rules {
 		if rule.HTTP == nil {
 			continue

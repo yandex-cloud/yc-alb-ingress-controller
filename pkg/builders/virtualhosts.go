@@ -130,27 +130,21 @@ func grpcRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolv
 	}
 }
 
-func (b *VirtualHostBuilder) AddHTTPDirectResponse(host string, path networking.HTTPIngressPath, directResponse *apploadbalancer.DirectResponseAction) error {
-	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
-	if err != nil {
-		return err
-	}
+func (b *VirtualHostBuilder) GetHosts() map[string]HostInfo {
+	return b.hosts
+}
 
+func (b *VirtualHostBuilder) AddHTTPDirectResponse(hp HostAndPath, directResponse *apploadbalancer.DirectResponseAction) error {
 	if _, ok := b.httpRouteMap[hp]; ok {
 		return nil
 	}
 
-	return b.addRoute(host, path, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
+	return b.addRoute(hp, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
 		return httpDirectResponseRoute(name, match, directResponse, b.allowedMethods), nil
 	})
 }
 
-func (b *VirtualHostBuilder) AddRedirect(host string, path networking.HTTPIngressPath, redirect *apploadbalancer.RedirectAction) error {
-	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
-	if err != nil {
-		return err
-	}
-
+func (b *VirtualHostBuilder) AddRedirect(hp HostAndPath, redirect *apploadbalancer.RedirectAction) error {
 	//do not overwrite route action with redirect
 	if _, ok := b.httpRouteMap[hp]; ok {
 		return nil
@@ -163,15 +157,10 @@ func (b *VirtualHostBuilder) AddRedirect(host string, path networking.HTTPIngres
 		return httpRouteForAction(name, match, action, b.allowedMethods), nil
 	}
 
-	return b.addRoute(host, path, createHTTPRedirect)
+	return b.addRoute(hp, createHTTPRedirect)
 }
 
-func (b *VirtualHostBuilder) AddHTTPRedirect(host string, path networking.HTTPIngressPath) error {
-	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
-	if err != nil {
-		return err
-	}
-
+func (b *VirtualHostBuilder) AddHTTPRedirect(hp HostAndPath) error {
 	//do not overwrite route action with redirect
 	if _, ok := b.httpRouteMap[hp]; ok {
 		return nil
@@ -189,7 +178,7 @@ func (b *VirtualHostBuilder) AddHTTPRedirect(host string, path networking.HTTPIn
 		return httpRouteForAction(name, match, action, b.allowedMethods), nil
 	}
 
-	return b.addRoute(host, path, createHTTPRedirect)
+	return b.addRoute(hp, createHTTPRedirect)
 }
 
 func (b *VirtualHostBuilder) SetOpts(routeOpts RouteResolveOpts, vhOpts VirtualHostResolveOpts, ingNamespace string) {
@@ -250,35 +239,30 @@ func (b *VirtualHostBuilder) SetOpts(routeOpts RouteResolveOpts, vhOpts VirtualH
 	b.allowedMethods = routeOpts.AllowedMethods
 }
 
-func (b *VirtualHostBuilder) AddRoute(host string, path networking.HTTPIngressPath) error {
-	return b.addRoute(host, path, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		return b.createRoute(name, match, path.Backend.Service.Name)
+func (b *VirtualHostBuilder) AddRoute(hp HostAndPath, serviceName string) error {
+	return b.addRoute(hp, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
+		return b.createRoute(name, match, serviceName)
 	})
 }
 
-func (b *VirtualHostBuilder) AddRouteCR(host string, path networking.HTTPIngressPath) error {
-	return b.addRoute(host, path, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		return b.createRouteCR(name, match, path.Backend.Resource.Name)
+func (b *VirtualHostBuilder) AddRouteCR(hp HostAndPath, resourceName string) error {
+	return b.addRoute(hp, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
+		return b.createRouteCR(name, match, resourceName)
 	})
 }
 
-func (b *VirtualHostBuilder) addRoute(host string, path networking.HTTPIngressPath, createRoute createRouteFn) error {
-	hp, err := HTTPIngressPathToHostAndPath(host, path, b.useRegex)
-	if err != nil {
-		return err
-	}
-
+func (b *VirtualHostBuilder) addRoute(hp HostAndPath, createRoute createRouteFn) error {
 	name := b.names.RouteForPath(b.tag, hp.Host, hp.Path, hp.PathType)
 
-	route, err := createRoute(name, matchForPath(path, b.useRegex))
+	route, err := createRoute(name, matchForPath(hp))
 	if err != nil {
 		return err
 	}
 
-	if _, ok := b.hosts[host]; !ok {
-		b.hosts[host] = HostInfo{
+	if _, ok := b.hosts[hp.Host]; !ok {
+		b.hosts[hp.Host] = HostInfo{
 			Order:              len(b.hosts),
-			Host:               host,
+			Host:               hp.Host,
 			ModifyResponseOpts: b.modifyResponseOpts,
 		}
 	}
@@ -391,19 +375,21 @@ func (b *VirtualHostBuilder) Build() *VirtualHostData {
 	}
 }
 
-func matchForPath(path networking.HTTPIngressPath, useRegex bool) *apploadbalancer.StringMatch {
-	if path.Path == "" {
+func matchForPath(hp HostAndPath) *apploadbalancer.StringMatch {
+	if hp.Path == "" {
 		return nil
 	}
+
 	var match apploadbalancer.StringMatch_Match
 	switch {
-	case useRegex:
-		match = &apploadbalancer.StringMatch_RegexMatch{RegexMatch: path.Path}
-	case path.PathType == nil, *path.PathType == networking.PathTypePrefix:
-		match = &apploadbalancer.StringMatch_PrefixMatch{PrefixMatch: path.Path}
+	case hp.PathType == PathTypeRegex:
+		match = &apploadbalancer.StringMatch_RegexMatch{RegexMatch: hp.Path}
+	case hp.PathType == string(networking.PathTypePrefix):
+		match = &apploadbalancer.StringMatch_PrefixMatch{PrefixMatch: hp.Path}
 	default:
-		match = &apploadbalancer.StringMatch_ExactMatch{ExactMatch: path.Path}
+		match = &apploadbalancer.StringMatch_ExactMatch{ExactMatch: hp.Path}
 	}
+
 	return &apploadbalancer.StringMatch{Match: match}
 }
 

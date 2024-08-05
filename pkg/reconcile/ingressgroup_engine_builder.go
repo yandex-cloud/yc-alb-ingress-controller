@@ -265,7 +265,83 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 	d.factory.RestartVirtualHostIDGenerator()
 	httpVHBuilder := d.factory.VirtualHostBuilder(g.Tag, d.bgFinder)
 	tlsVHBuilder := d.factory.TLSVirtualHostBuilder(g.Tag, d.bgFinder)
+
+	handleBackend := func(
+		backend networking.IngressBackend,
+		hp builders.HostAndPath,
+		isTlS bool,
+		backendType builders.BackendType,
+		directResponseActions map[string]*apploadbalancer.DirectResponseAction,
+		redirectActions map[string]*apploadbalancer.RedirectAction,
+	) error {
+		if backend.Resource != nil && backend.Resource.Kind == "DirectResponse" {
+			directResponse, found := directResponseActions[backend.Resource.Name]
+			if !found {
+				return fmt.Errorf("direct response action for host %s and path %s not found", hp.Host, hp.Path)
+			}
+
+			err := httpVHBuilder.AddHTTPDirectResponse(hp, directResponse)
+			if err != nil {
+				return err
+			}
+			return tlsVHBuilder.AddHTTPDirectResponse(hp, directResponse)
+		}
+
+		if backend.Resource != nil && backend.Resource.Kind == "Redirect" {
+			redirect, found := redirectActions[backend.Resource.Name]
+			if !found {
+				return fmt.Errorf("redirect action for host %s and path %s not found", hp.Host, hp.Path)
+			}
+
+			err := httpVHBuilder.AddRedirect(hp, redirect)
+			if err != nil {
+				return err
+			}
+			return tlsVHBuilder.AddRedirect(hp, redirect)
+		}
+
+		if backend.Resource != nil && backend.Resource.Kind == "HttpBackendGroup" {
+			if !isTlS {
+				return httpVHBuilder.AddRouteCR(hp, backend.Resource.Name)
+			}
+
+			err := httpVHBuilder.AddHTTPRedirect(hp)
+			if err != nil {
+				return err
+			}
+
+			return tlsVHBuilder.AddRouteCR(hp, backend.Resource.Name)
+		}
+
+		if backend.Service != nil {
+			if !isTlS {
+				return httpVHBuilder.AddRoute(hp, backend.Service.Name)
+			}
+
+			if backendType != builders.GRPC {
+				err := httpVHBuilder.AddHTTPRedirect(hp)
+				if err != nil {
+					return err
+				}
+			}
+
+			return tlsVHBuilder.AddRoute(hp, backend.Service.Name)
+		}
+
+		return nil
+	}
+
+	var ingWithDefaultBackend *networking.Ingress
+
 	for _, ing := range g.Items {
+		if ing.Spec.DefaultBackend != nil && ingWithDefaultBackend != nil {
+			return nil, nil, fmt.Errorf("default backend can be specified only once, ingress-group: %s", g.Tag)
+		}
+
+		if ing.Spec.DefaultBackend != nil {
+			ingWithDefaultBackend = &ing
+		}
+
 		routeOpts, err := d.routeOpts(ing)
 		if err != nil {
 			return nil, nil, err
@@ -294,86 +370,71 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			}
 
 			for _, path := range rule.HTTP.Paths {
-				if path.Backend.Resource != nil && path.Backend.Resource.Kind == "DirectResponse" {
-					directResponse, found := directResponseActions[path.Backend.Resource.Name]
-					if !found {
-						return nil, nil, fmt.Errorf("direct response action for host %s and path %s not found", rule.Host, path.Path)
-					}
-
-					err = httpVHBuilder.AddHTTPDirectResponse(rule.Host, path, directResponse)
-					if err != nil {
-						return nil, nil, err
-					}
-					err = tlsVHBuilder.AddHTTPDirectResponse(rule.Host, path, directResponse)
-					if err != nil {
-						return nil, nil, err
-					}
-					continue
+				hp, err := builders.HTTPIngressPathToHostAndPath(rule.Host, path, routeOpts.UseRegex)
+				if err != nil {
+					return nil, nil, err
 				}
 
-				if path.Backend.Resource != nil && path.Backend.Resource.Kind == "Redirect" {
-					redirect, found := redirectActions[path.Backend.Resource.Name]
-					if !found {
-						return nil, nil, fmt.Errorf("redirect action for host %s and path %s not found", rule.Host, path.Path)
-					}
-
-					err = httpVHBuilder.AddRedirect(rule.Host, path, redirect)
-					if err != nil {
-						return nil, nil, err
-					}
-					err = tlsVHBuilder.AddRedirect(rule.Host, path, redirect)
-					if err != nil {
-						return nil, nil, err
-					}
-					continue
-				}
-
-				if path.Backend.Resource != nil && path.Backend.Resource.Kind == "HttpBackendGroup" {
-					if !k8s.IsTLS(rule.Host, ing.Spec.TLS) {
-						err = httpVHBuilder.AddRouteCR(rule.Host, path)
-						if err != nil {
-							return nil, nil, err
-						}
-						continue
-					}
-
-					err = httpVHBuilder.AddHTTPRedirect(rule.Host, path)
-					if err != nil {
-						return nil, nil, err
-					}
-
-					err = tlsVHBuilder.AddRouteCR(rule.Host, path)
-					if err != nil {
-						return nil, nil, err
-					}
-
-					continue
-				}
-
-				if path.Backend.Service != nil {
-					if !k8s.IsTLS(rule.Host, ing.Spec.TLS) {
-						err = httpVHBuilder.AddRoute(rule.Host, path)
-						if err != nil {
-							return nil, nil, err
-						}
-						continue
-					}
-
-					if routeOpts.BackendType != builders.GRPC {
-						err = httpVHBuilder.AddHTTPRedirect(rule.Host, path)
-						if err != nil {
-							return nil, nil, err
-						}
-					}
-
-					err = tlsVHBuilder.AddRoute(rule.Host, path)
-					if err != nil {
-						return nil, nil, err
-					}
+				err = handleBackend(path.Backend, hp, k8s.IsTLS(hp.Host, ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
+				if err != nil {
+					return nil, nil, err
 				}
 			}
 		}
 	}
+
+	if ingWithDefaultBackend != nil {
+		ing := *ingWithDefaultBackend
+
+		routeOpts, err := d.routeOpts(ing)
+		if err != nil {
+			return nil, nil, err
+		}
+		vhOpts, err := d.vhOpts(ing)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		tlsVHBuilder.SetOpts(routeOpts, vhOpts, ing.Namespace)
+		httpVHBuilder.SetOpts(routeOpts, vhOpts, ing.Namespace)
+
+		directResponseActions, err := d.directResponses(ing)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		redirectActions, err := d.redirects(ing)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error getting redirectActions: %w", err)
+		}
+
+		// host and path to match all the request, with hosts different from others
+		hp := builders.HostAndPath{
+			Host:     "*",
+			Path:     "/",
+			PathType: string(networking.PathTypePrefix),
+		}
+
+		err = handleBackend(*ing.Spec.DefaultBackend, hp, k8s.IsTLS("*", ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// handlers with pats, matching all the requests, with hosts specified in ingresses
+		for host := range httpVHBuilder.GetHosts() {
+			hp = builders.HostAndPath{
+				Host:     host,
+				Path:     "/",
+				PathType: string(networking.PathTypePrefix),
+			}
+
+			err = handleBackend(*ing.Spec.DefaultBackend, hp, k8s.IsTLS(host, ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
 	return httpVHBuilder.Build(), tlsVHBuilder.Build(), nil
 }
 

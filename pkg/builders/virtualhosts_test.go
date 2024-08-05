@@ -699,13 +699,19 @@ func TestVirtualHosts(t *testing.T) {
 			b.SetOpts(tc.routeOpts, tc.vhOpts, "ingress-namespace")
 			for _, r := range tc.rules {
 				for _, p := range r.HTTP.Paths {
-					err := b.AddRoute(r.Host, p)
+					hp, err := HTTPIngressPathToHostAndPath(r.Host, p, tc.routeOpts.UseRegex)
+					require.NoError(t, err)
+
+					err = b.AddRoute(hp, p.Backend.Service.Name)
 					require.NoError(t, err)
 				}
 			}
 			for _, r := range tc.redirectRules {
 				for _, p := range r.HTTP.Paths {
-					err := b.AddHTTPRedirect(r.Host, p)
+					hp, err := HTTPIngressPathToHostAndPath(r.Host, p, tc.routeOpts.UseRegex)
+					require.NoError(t, err)
+
+					err = b.AddHTTPRedirect(hp)
 					require.NoError(t, err)
 				}
 			}

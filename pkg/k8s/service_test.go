@@ -94,6 +94,22 @@ func TestServiceLoader_Load(t *testing.T) {
 		},
 	}
 
+	ingWithDefaultBackend := networking.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "basic-ing",
+			Namespace:   "basic-ns",
+			Annotations: map[string]string{AlbTag: "default"},
+		},
+		Spec: networking.IngressSpec{
+			DefaultBackend: &networking.IngressBackend{
+				Service: &networking.IngressServiceBackend{
+					Name: "basic-svc",
+				},
+			},
+			Rules: []networking.IngressRule{},
+		},
+	}
+
 	var testData = []struct {
 		desc    string
 		objects []client.Object
@@ -132,6 +148,17 @@ func TestServiceLoader_Load(t *testing.T) {
 			objects: []client.Object{&svcToDelete, &basicIngress},
 			exp: ServiceToReconcile{
 				ToDelete: &svcToDelete,
+			},
+		},
+		{
+			desc: "default",
+			svc: types.NamespacedName{
+				Name:      "basic-svc",
+				Namespace: "basic-ns",
+			},
+			objects: []client.Object{&svcBasic, &ingWithDefaultBackend},
+			exp: ServiceToReconcile{
+				ToReconcile: &svcBasic,
 			},
 		},
 	}

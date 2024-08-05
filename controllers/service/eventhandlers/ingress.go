@@ -74,6 +74,13 @@ func NewIngressEventHandler(logger logr.Logger, cli client.Client) *IngressEvent
 func parseServicesFromIngress(ing *networking.Ingress) map[types.NamespacedName]struct{} {
 	result := make(map[types.NamespacedName]struct{})
 
+	if ing.Spec.DefaultBackend != nil && ing.Spec.DefaultBackend.Service != nil {
+		result[types.NamespacedName{
+			Name:      ing.Spec.DefaultBackend.Service.Name,
+			Namespace: ing.Namespace,
+		}] = struct{}{}
+	}
+
 	for _, rule := range ing.Spec.Rules {
 		if rule.HTTP == nil {
 			continue
