@@ -2,6 +2,11 @@ package errors
 
 import (
 	"errors"
+	core "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,26 +27,56 @@ const (
 	FAIL    = "fail"
 )
 
+type Object interface {
+	meta.Object
+	runtime.Object
+}
+
 func HandleError(err error, log logr.Logger) (ctrl.Result, error) {
 	var outcome string
 	var st *status.Status
 	defer func() { logResult(log, outcome, err, st) }()
 
-	if err == nil {
-		outcome = DONE
+	outcome = errorOutcome(err)
+	switch outcome {
+	case DONE:
 		return ctrl.Result{}, nil
+	case REQUEUE:
+		return ctrl.Result{RequeueAfter: FailureRequeueInterval * time.Second}, nil
 	}
-	st = grpcStatus(err)
+	return ctrl.Result{}, err
+}
+
+func HandleErrorWithObject(err error, obj Object, recorder record.EventRecorder) {
+	if isNil(obj) {
+		return
+	}
+	outcome := errorOutcome(err)
+	switch outcome {
+	case DONE:
+		recorder.Eventf(obj, core.EventTypeNormal, "ReconciliationComplete", "Reconciliation complete for %s", obj.GetName())
+	case FAIL:
+		recorder.Eventf(obj, core.EventTypeWarning, "ReconciliationFailed", "Reconciliation failed for %s: %s", obj.GetName(), err.Error())
+	}
+}
+
+func isNil(obj interface{}) bool {
+	return obj == nil ||
+		(reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil())
+}
+
+func errorOutcome(err error) string {
+	if err == nil {
+		return DONE
+	}
+	st := grpcStatus(err)
 	if errors.As(err, &ycerrors.ResourceNotReadyError{}) ||
 		errors.As(err, &ycerrors.OperationIncompleteError{}) ||
 		errors.As(err, &ycerrors.YCResourceNotReadyError{}) ||
 		st != nil && st.Code() == codes.FailedPrecondition {
-		outcome = REQUEUE
-		return ctrl.Result{RequeueAfter: time.Second * FailureRequeueInterval}, nil
+		return REQUEUE
 	}
-
-	outcome = FAIL
-	return ctrl.Result{}, err
+	return FAIL
 }
 
 func grpcStatus(err error) *status.Status {

@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
+	"k8s.io/client-go/tools/record"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	core "k8s.io/api/core/v1"
@@ -40,81 +42,90 @@ type Reconciler struct {
 	IngressLoader      k8s.IngressLoader
 
 	Names *metadata.Names
+
+	recorder record.EventRecorder
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	rLog := log.FromContext(ctx)
 	rLog.Info("event detected")
-	err := r.doReconcile(ctx, req)
+	svc, err := r.doReconcile(ctx, req)
+	errors2.HandleErrorWithObject(err, svc, r.recorder)
 	return errors2.HandleError(err, rLog)
 }
 
-func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) error {
+func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.Service, error) {
 	svc, err := r.ServiceLoader.Load(ctx, req.NamespacedName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if svc.ToReconcile != nil {
+		obj := svc.ToReconcile
+
 		err = r.FinalizerManager.UpdateFinalizer(ctx, svc.ToReconcile, k8s.Finalizer)
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		tg, err := r.TargetGroupBuilder.Build(ctx, req.NamespacedName)
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		tg, err = r.TargetGroupDeployer.Deploy(ctx, tg)
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		ings, err := r.IngressLoader.ListBySvc(ctx, *svc.ToReconcile)
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		bg, err := r.BackendGroupBuilder.Build(svc.ToReconcile, ings, tg.Id)
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		bg, err = r.BackendGroupDeployer.Deploy(ctx, bg)
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		err = r.AddIDsToGroupStatuses(ctx, *svc.ToReconcile, tg, bg)
 		if err != nil {
-			return err
+			return obj, err
 		}
+		return obj, err
 	}
 
 	if svc.ToDelete != nil {
+		obj := svc.ToDelete
+
 		bg, err := r.BackendGroupDeployer.Undeploy(ctx, r.Names.NewBackendGroup(req.NamespacedName))
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		tg, err := r.TargetGroupDeployer.Undeploy(ctx, r.Names.TargetGroup(req.NamespacedName))
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		err = r.RemoveIDsFromGroupStatuses(ctx, *svc.ToDelete, tg, bg)
 		if err != nil {
-			return err
+			return obj, err
 		}
 
 		err = r.FinalizerManager.RemoveFinalizer(ctx, svc.ToDelete, k8s.Finalizer)
 		if err != nil {
-			return err
+			return obj, err
 		}
+		return obj, err
 	}
 
-	return nil
+	return nil, err
 }
 
 func getGroupNamesFromIngresses(ings []networking.Ingress) map[string]struct{} {
@@ -148,6 +159,12 @@ func (r *Reconciler) updateGroupStatuses(
 func (r *Reconciler) AddIDsToGroupStatuses(ctx context.Context, svc core.Service, tg *apploadbalancer.TargetGroup, bg *apploadbalancer.BackendGroup) error {
 	return r.updateGroupStatuses(ctx, svc, func(ctx context.Context, group string) error {
 		status, err := r.GroupStatusManager.LoadStatus(ctx, group)
+		if errors.IsNotFound(err) {
+			return ycerrors.ResourceNotReadyError{
+				ResourceType: "IngressGroupStatus",
+				Name:         group,
+			}
+		}
 		if err != nil {
 			return err
 		}
@@ -219,6 +236,8 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, useEndpointSlices bool) 
 	if err != nil {
 		return err
 	}
+
+	r.recorder = mgr.GetEventRecorderFor(k8s.ControllerName)
 
 	return nil
 }

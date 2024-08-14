@@ -3,7 +3,7 @@ package ingress
 import (
 	"context"
 	"fmt"
-
+	"github.com/yandex-cloud/alb-ingress/controllers/ingress/eventhandlers"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	v1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -25,7 +25,6 @@ import (
 	"github.com/yandex-cloud/alb-ingress/controllers/errors"
 	"github.com/yandex-cloud/alb-ingress/pkg/yc"
 
-	"github.com/yandex-cloud/alb-ingress/controllers/ingress/eventhandlers"
 	"github.com/yandex-cloud/alb-ingress/pkg/deploy"
 	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
 	reconcile2 "github.com/yandex-cloud/alb-ingress/pkg/reconcile"
@@ -37,7 +36,7 @@ import (
 //+kubebuilder:rbac:groups=core,resources=services/status,verbs=update;patch
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;update
-//+kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;update;create
+//+kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;update;patch;create
 
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses/status,verbs=get;update;patch
@@ -85,13 +84,66 @@ type GroupReconciler struct {
 	SettingsLoader SettingsLoader
 
 	Scheme *runtime.Scheme
+
+	recorder record.EventRecorder
 }
 
 func (r *GroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	rLog := log.FromContext(ctx).WithValues("name", req.NamespacedName, "kind", "IngressGroup")
 	rLog.Info("Group event Detected")
-	err := r.doReconcile(ctx, req)
+	g, err := r.doReconcile(ctx, req)
+	if g != nil {
+		for _, in := range g.Items {
+			errors.HandleErrorWithObject(err, &in, r.recorder)
+		}
+		for _, in := range g.Deleted {
+			errors.HandleErrorWithObject(err, &in, r.recorder)
+		}
+	}
 	return errors.HandleError(err, rLog)
+}
+
+func (r *GroupReconciler) doReconcile(ctx context.Context, req ctrl.Request) (*k8s.IngressGroup, error) {
+	g, err := r.Loader.Load(ctx, req.NamespacedName)
+	if err != nil || g == nil {
+		return g, err
+	}
+	err = r.updateGroupFinalizer(ctx, g)
+	if err != nil {
+		return g, err
+	}
+
+	r.SecretsManager.ManageGroup(ctx, g)
+
+	settings, err := r.SettingsLoader.Load(ctx, g)
+	if err != nil {
+		return g, err
+	}
+
+	reconcileEngine, err := r.Builder.Build(ctx, g, settings)
+	if err != nil {
+		return g, err
+	}
+	balancerResources, err := r.Deployer.Deploy(ctx, g.Tag, reconcileEngine)
+	if err != nil {
+		return g, err
+	}
+
+	err = r.setGroupStatus(ctx, g, balancerResources)
+	if err != nil {
+		return g, err
+	}
+
+	err = r.deleteOldBackendGroups(ctx, g.Tag)
+	if err != nil {
+		return g, err
+	}
+
+	err = r.removeGroupFinalizer(ctx, g)
+	if err != nil {
+		return g, err
+	}
+	return g, err
 }
 
 // SetupWithManager sets up the controller with the manager.
@@ -109,6 +161,7 @@ func (r *GroupReconciler) SetupWithManager(
 	}
 
 	eventRecorder := mgr.GetEventRecorderFor("ingress-group")
+	r.recorder = eventRecorder
 
 	err = c.Watch(&source.Kind{Type: &v1.Service{}}, eventhandlers.NewServiceEventHandler(mgr.GetLogger(), mgr.GetClient(), eventRecorder))
 	if err != nil {
@@ -129,49 +182,6 @@ func (r *GroupReconciler) SetupWithManager(
 
 	cli := mgr.GetClient()
 	return r.setupIngressClassesWatch(c, cli, eventRecorder)
-}
-
-func (r *GroupReconciler) doReconcile(ctx context.Context, req ctrl.Request) error {
-	g, err := r.Loader.Load(ctx, req.NamespacedName)
-	if err != nil || g == nil {
-		return err
-	}
-	err = r.updateGroupFinalizer(ctx, g)
-	if err != nil {
-		return err
-	}
-
-	r.SecretsManager.ManageGroup(ctx, g)
-
-	settings, err := r.SettingsLoader.Load(ctx, g)
-	if err != nil {
-		return err
-	}
-
-	reconcileEngine, err := r.Builder.Build(ctx, g, settings)
-	if err != nil {
-		return err
-	}
-	balancerResources, err := r.Deployer.Deploy(ctx, g.Tag, reconcileEngine)
-	if err != nil {
-		return err
-	}
-
-	err = r.setGroupStatus(ctx, g, balancerResources)
-	if err != nil {
-		return err
-	}
-
-	err = r.deleteOldBackendGroups(ctx, g.Tag)
-	if err != nil {
-		return err
-	}
-
-	err = r.removeGroupFinalizer(ctx, g)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *GroupReconciler) deleteOldBackendGroups(ctx context.Context, tag string) error {

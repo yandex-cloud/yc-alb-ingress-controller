@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
+	"k8s.io/client-go/tools/record"
 	"strings"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/certificatemanager/v1"
@@ -28,7 +30,8 @@ type SecretController struct {
 	cli   client.Client
 	names *metadata.Names
 
-	repo yc.CertRepo
+	repo     yc.CertRepo
+	recorder record.EventRecorder
 }
 
 func NewSecretController(cli client.Client, certRepo yc.CertRepo, names *metadata.Names) *SecretController {
@@ -59,20 +62,23 @@ func (sc *SecretController) SetupWithManager(mgr ctrl.Manager, secretEventChan c
 		return err
 	}
 
+	sc.recorder = mgr.GetEventRecorderFor(k8s.ControllerName)
+
 	return c.Watch(&source.Channel{Source: secretEventChan}, handler.EnqueueRequestsFromMapFunc(secretMapFn))
 }
 
 func (sc *SecretController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	rLog := log.FromContext(ctx).WithValues("name", req.NamespacedName, "kind", "Secret")
 	rLog.Info("Secret event detected")
-	err := sc.doReconcile(ctx, req)
+	secret, err := sc.doReconcile(ctx, req)
+	errors2.HandleErrorWithObject(err, secret, sc.recorder)
 	return errors2.HandleError(err, rLog)
 }
 
-func (sc *SecretController) doReconcile(ctx context.Context, req reconcile.Request) error {
+func (sc *SecretController) doReconcile(ctx context.Context, req reconcile.Request) (*v1.Secret, error) {
 	certs, err := sc.repo.LoadCertificates(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	certName := sc.names.Certificate(req.NamespacedName)
@@ -82,22 +88,22 @@ func (sc *SecretController) doReconcile(ctx context.Context, req reconcile.Reque
 	err = sc.cli.Get(ctx, req.NamespacedName, &secret)
 	if errors.IsNotFound(err) || secret.DeletionTimestamp != nil {
 		if cert == nil {
-			return nil
+			return nil, nil
 		}
 
-		return sc.repo.DeleteCertificate(ctx, cert.Id)
+		return nil, sc.repo.DeleteCertificate(ctx, cert.Id)
 	}
 	if err != nil {
-		return err
+		return &secret, err
 	}
 
 	secretKey, err := convertKeyIfNeeded(secret.Data["tls.key"])
 	if err != nil {
-		return err
+		return &secret, err
 	}
 
 	if cert == nil {
-		return sc.repo.CreateCertificate(ctx, yc.Certificate{
+		return &secret, sc.repo.CreateCertificate(ctx, yc.Certificate{
 			Name:  certName,
 			Key:   secretKey,
 			Chain: string(secret.Data["tls.crt"]),
@@ -106,11 +112,11 @@ func (sc *SecretController) doReconcile(ctx context.Context, req reconcile.Reque
 
 	certData, err := sc.repo.LoadCertificateData(ctx, cert.Id)
 	if err != nil {
-		return err
+		return &secret, err
 	}
 
 	if certNeedsUpdate(secret, certData) {
-		return sc.repo.UpdateCertificate(ctx, yc.Certificate{
+		return &secret, sc.repo.UpdateCertificate(ctx, yc.Certificate{
 			ID:    cert.Id,
 			Name:  cert.Name,
 			Key:   secretKey,
@@ -118,7 +124,7 @@ func (sc *SecretController) doReconcile(ctx context.Context, req reconcile.Reque
 		})
 	}
 
-	return nil
+	return &secret, nil
 }
 
 func certNeedsUpdate(secret v1.Secret, data *certificatemanager.GetCertificateContentResponse) bool {

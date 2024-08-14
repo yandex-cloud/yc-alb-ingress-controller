@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
+	"k8s.io/client-go/tools/record"
 	"time"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,6 +38,8 @@ type HTTPBackendGroupReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	ReconcileHandler
+
+	recorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=alb.yc.io,resources=httpbackendgroups,verbs=get;list;watch;create;update;patch;delete
@@ -71,16 +75,19 @@ func (r *HTTPBackendGroupReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if !bg.DeletionTimestamp.IsZero() {
 		rLog.Info("object is being gracefully deleted")
 		err = r.HandleResourceDeleted(ctx, &bg)
+		errors.HandleErrorWithObject(err, &bg, r.recorder)
 		return errors.HandleError(err, rLog)
 	}
 
 	rLog.Info("object has been created or updated")
 	err = r.HandleResourceUpdated(ctx, &bg)
+	errors.HandleErrorWithObject(err, &bg, r.recorder)
 	return errors.HandleError(err, rLog)
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HTTPBackendGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.recorder = mgr.GetEventRecorderFor(k8s.ControllerName)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&albv1alpha1.HttpBackendGroup{}).
 		Complete(r)
