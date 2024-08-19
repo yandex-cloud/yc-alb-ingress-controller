@@ -100,17 +100,15 @@ func newFixture() *fixture {
 	return &f
 }
 
-var f = newFixture()
-
 func data(f *fixture) *builders.Data {
-	var data = builders.Data{
+	data := builders.Data{
 		TargetGroups: []*apploadbalancer.TargetGroup{{Id: "TG_1"}},
 		BackendGroups: &builders.BackendGroups{
 			BackendGroups: []*apploadbalancer.BackendGroup{f.expbg1, f.expbg2, f.expbg3},
 			BackendGroupByHostPath: map[builders.HostAndPath]*apploadbalancer.BackendGroup{
-				builders.HostAndPath{Host: "anywhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:     f.expbg1,
-				builders.HostAndPath{Host: "anywhere.ru", Path: "/wander", PathType: string(networking.PathTypePrefix)}: f.expbg2,
-				builders.HostAndPath{Host: "elsewhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:    f.expbg3,
+				{Host: "anywhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:     f.expbg1,
+				{Host: "anywhere.ru", Path: "/wander", PathType: string(networking.PathTypePrefix)}: f.expbg2,
+				{Host: "elsewhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:    f.expbg3,
 			},
 			BackendGroupByName: map[string]*apploadbalancer.BackendGroup{
 				"backend_group_1": f.expbg1,
@@ -120,9 +118,9 @@ func data(f *fixture) *builders.Data {
 		},
 		HTTPHosts: &builders.VirtualHostData{
 			HTTPRouteMap: map[builders.HostAndPath]*apploadbalancer.Route{
-				builders.HostAndPath{Host: "anywhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:     f.httpRoute1,
-				builders.HostAndPath{Host: "anywhere.ru", Path: "/wander", PathType: string(networking.PathTypePrefix)}: f.httpRedirectRoute2,
-				builders.HostAndPath{Host: "elsewhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:    f.httpRedirectRoute3,
+				{Host: "anywhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:     f.httpRoute1,
+				{Host: "anywhere.ru", Path: "/wander", PathType: string(networking.PathTypePrefix)}: f.httpRedirectRoute2,
+				{Host: "elsewhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:    f.httpRedirectRoute3,
 			},
 			Router: &apploadbalancer.HttpRouter{
 				VirtualHosts: []*apploadbalancer.VirtualHost{
@@ -139,8 +137,8 @@ func data(f *fixture) *builders.Data {
 		},
 		TLSHosts: &builders.VirtualHostData{
 			HTTPRouteMap: map[builders.HostAndPath]*apploadbalancer.Route{
-				builders.HostAndPath{Host: "anywhere.ru", Path: "/wander", PathType: string(networking.PathTypePrefix)}: f.tlsRoute1,
-				builders.HostAndPath{Host: "elsewhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:    f.tlsRoute2,
+				{Host: "anywhere.ru", Path: "/wander", PathType: string(networking.PathTypePrefix)}: f.tlsRoute1,
+				{Host: "elsewhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:    f.tlsRoute2,
 			},
 			Router: &apploadbalancer.HttpRouter{
 				VirtualHosts: []*apploadbalancer.VirtualHost{
@@ -163,31 +161,11 @@ func data(f *fixture) *builders.Data {
 	}
 	return &data
 }
+
 func fakeMeta(t *testing.T, msg proto.Message) *anypb.Any {
-	any, err := anypb.New(msg)
+	a, err := anypb.New(msg)
 	require.NoError(t, err)
-	return any
-}
-
-type bgMatcher struct {
-	bg *apploadbalancer.BackendGroup
-}
-
-func (m *bgMatcher) Matches(x any) bool {
-	bg, ok := x.(*apploadbalancer.BackendGroup)
-	if !ok {
-		return false
-	}
-
-	return proto.Equal(m.bg, bg)
-}
-
-func (m *bgMatcher) String() string {
-	return m.bg.String()
-}
-
-func newBgMatcher(bg *apploadbalancer.BackendGroup) gomock.Matcher {
-	return &bgMatcher{bg: bg}
+	return a
 }
 
 func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
@@ -204,7 +182,8 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 		repo := mocks.NewMockRepository(ctrl)
 		repo.EXPECT().UpdateLoadBalancer(gomock.Any(), d.Balancer).Return(&protooperation.Operation{
 			Id:       "OP_1",
-			Metadata: fakeMeta(t, &apploadbalancer.UpdateLoadBalancerMetadata{LoadBalancerId: "B_1"})}, nil)
+			Metadata: fakeMeta(t, &apploadbalancer.UpdateLoadBalancerMetadata{LoadBalancerId: "B_1"}),
+		}, nil)
 		repo.EXPECT().ListLoadBalancerOperations(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		r := &IngressGroupEngine{
@@ -240,7 +219,8 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 		repo := mocks.NewMockRepository(ctrl)
 		repo.EXPECT().CreateLoadBalancer(gomock.Any(), d.Balancer).Return(&protooperation.Operation{
 			Id:       "OP_1",
-			Metadata: fakeMeta(t, &apploadbalancer.UpdateLoadBalancerMetadata{LoadBalancerId: "B_1"})}, nil)
+			Metadata: fakeMeta(t, &apploadbalancer.UpdateLoadBalancerMetadata{LoadBalancerId: "B_1"}),
+		}, nil)
 		r := &IngressGroupEngine{
 			Data:       d,
 			Repo:       repo,
@@ -507,6 +487,5 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 		assert.Equal(t, "HTTP_R_1", d.TLSHosts.Router.Id)
 		assert.Equal(t, "HTTP_R_1", f.tlsHandler1.HttpRouterId)
 		assert.Equal(t, "HTTP_R_1", f.tlsHandler2.HttpRouterId)
-
 	})
 }

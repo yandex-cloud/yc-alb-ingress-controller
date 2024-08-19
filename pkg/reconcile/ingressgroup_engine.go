@@ -54,7 +54,7 @@ func (r *IngressGroupEngine) ReconcileTLSRouter(ctx context.Context, router *app
 	return ret, nil
 }
 
-func (r IngressGroupEngine) ReconcileBalancer(ctx context.Context, balancer *apploadbalancer.LoadBalancer) (*deploy.ReconciledBalancer, error) {
+func (r *IngressGroupEngine) ReconcileBalancer(ctx context.Context, balancer *apploadbalancer.LoadBalancer) (*deploy.ReconciledBalancer, error) {
 	if r.Data == nil || (r.HTTPHosts == nil || len(r.HTTPHosts.HTTPRouteMap) == 0) && (r.TLSHosts == nil || len(r.TLSHosts.HTTPRouteMap) == 0) { // assume no routes means no ingresses -> delete
 		if balancer.GetStatus() == apploadbalancer.LoadBalancer_DELETING {
 			return nil, ycerrors.YCResourceNotReadyError{
@@ -65,7 +65,7 @@ func (r IngressGroupEngine) ReconcileBalancer(ctx context.Context, balancer *app
 		return &deploy.ReconciledBalancer{Garbage: balancer}, nil
 	}
 
-	if balancer == nil { //create
+	if balancer == nil { // create
 		op, err := r.Repo.CreateLoadBalancer(context.Background(), r.Data.Balancer)
 		if err != nil {
 			return nil, err

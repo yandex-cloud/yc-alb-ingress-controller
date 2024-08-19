@@ -28,7 +28,8 @@ type TargetGroupBuilder struct {
 }
 
 func NewTargetGroupBuilder(folderID string, cli client.Client, names *metadata.Names, labels *metadata.Labels,
-	getInstanceFn func(context.Context, string) (*compute.Instance, error), useEndpointSlices bool) *TargetGroupBuilder {
+	getInstanceFn func(context.Context, string) (*compute.Instance, error), useEndpointSlices bool,
+) *TargetGroupBuilder {
 	return &TargetGroupBuilder{
 		folderID:          folderID,
 		names:             names,
@@ -115,7 +116,6 @@ func (t *TargetGroupBuilder) getServiceNodeNamesFromEndpointsSlice(ctx context.C
 		client.MatchingLabels{
 			"kubernetes.io/service-name": svc.Name,
 		})
-
 	if err != nil {
 		return nil, err
 	}

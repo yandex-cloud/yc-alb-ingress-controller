@@ -75,7 +75,7 @@ func (b *BackendGroupReconcileHandler) HandleResourceDeleted(ctx context.Context
 	return ycerrors.OperationIncompleteError{ID: op.Id}
 }
 
-func (b *BackendGroupReconcileHandler) HandleResourceNotFound(_ context.Context, name types.NamespacedName) error {
+func (b *BackendGroupReconcileHandler) HandleResourceNotFound(_ context.Context, _ types.NamespacedName) error {
 	/*
 		Solution1: if BackendGroup built from CRs is unambiguously named using its CRD name just delete it by name,
 		and if it existed -> requeue, otherwise reconciliation not needed

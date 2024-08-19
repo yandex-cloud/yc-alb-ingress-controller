@@ -53,7 +53,6 @@ func (r *certRepo) LoadCertificates(ctx context.Context) (map[string]*certificat
 	certs, err := r.sdk.Certificates().Certificate().List(ctx, &certificatemanager.ListCertificatesRequest{
 		FolderId: r.folderID,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +77,6 @@ func (r *certRepo) LoadCertificateData(ctx context.Context, id string) (*certifi
 	data, err := r.sdk.CertificatesData().CertificateContent().Get(ctx, &certificatemanager.GetCertificateContentRequest{
 		CertificateId: id,
 	})
-
 	if err != nil {
 		return nil, err
 	}

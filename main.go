@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	ycsdk "github.com/yandex-cloud/go-sdk"
@@ -142,7 +141,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "6fc44231.yc.io",
-		NewClient: func(cache cache.Cache, config *rest.Config, options client.Options, uncachedObjects ...client.Object) (client.Client, error) {
+		NewClient: func(_ cache.Cache, config *rest.Config, options client.Options, _ ...client.Object) (client.Client, error) {
 			return client.New(config, options)
 		},
 	})
@@ -300,7 +299,7 @@ type Key struct {
 }
 
 func getCredsFromFile(keyFile string) (*iamkey.Key, error) {
-	data, err := ioutil.ReadFile(keyFile)
+	data, err := os.ReadFile(keyFile)
 	if err != nil {
 		return nil, err
 	}

@@ -18,9 +18,11 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"time"
+
 	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
 	"k8s.io/client-go/tools/record"
-	"time"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	albv1alpha1 "github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	"github.com/yandex-cloud/alb-ingress/controllers/errors"
+	errors2 "github.com/yandex-cloud/alb-ingress/controllers/errors"
 )
 
 // HTTPBackendGroupReconciler reconciles a HttpBackendGroup object
@@ -58,7 +60,8 @@ func (r *HTTPBackendGroupReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	err := r.Get(ctx, req.NamespacedName, &bg)
 
 	// HttpBackendGroup removed from etcd, and we failed to retrieve it (e.g. forceful deletion)
-	if statusError, isStatus := err.(*k8serrors.StatusError); isStatus && statusError.Status().Reason == metav1.StatusReasonNotFound {
+	var statusError *k8serrors.StatusError
+	if errors.As(err, &statusError) && statusError.Status().Reason == metav1.StatusReasonNotFound {
 		rLog.Info("object not found, probably deleted")
 		// TODO: check handler's error after handler is implemented
 		_ = r.HandleResourceNotFound(ctx, req.NamespacedName)
@@ -68,21 +71,21 @@ func (r *HTTPBackendGroupReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// request failure
 	if err != nil {
 		rLog.Info("failed to retrieve object")
-		return ctrl.Result{RequeueAfter: time.Second * errors.FailureRequeueInterval}, err
+		return ctrl.Result{RequeueAfter: time.Second * errors2.FailureRequeueInterval}, err
 	}
 
 	// HttpBackendGroup is being gracefully deleted
 	if !bg.DeletionTimestamp.IsZero() {
 		rLog.Info("object is being gracefully deleted")
 		err = r.HandleResourceDeleted(ctx, &bg)
-		errors.HandleErrorWithObject(err, &bg, r.recorder)
-		return errors.HandleError(err, rLog)
+		errors2.HandleErrorWithObject(err, &bg, r.recorder)
+		return errors2.HandleError(err, rLog)
 	}
 
 	rLog.Info("object has been created or updated")
 	err = r.HandleResourceUpdated(ctx, &bg)
-	errors.HandleErrorWithObject(err, &bg, r.recorder)
-	return errors.HandleError(err, rLog)
+	errors2.HandleErrorWithObject(err, &bg, r.recorder)
+	return errors2.HandleError(err, rLog)
 }
 
 // SetupWithManager sets up the controller with the Manager.

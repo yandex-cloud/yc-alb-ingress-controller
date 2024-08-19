@@ -9,10 +9,10 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
-)
 
-// this package need to be vendored for mockgen to work, but nothing depends on it in this project
-import _ "github.com/golang/mock/mockgen/model"
+	// this package need to be vendored for mockgen to work, but nothing depends on it in this project
+	_ "github.com/golang/mock/mockgen/model"
+)
 
 //go:generate mockgen -destination=./mocks/targetgroup.go -package=mocks . TargetGroupRepo
 

@@ -110,7 +110,7 @@ func TestServiceLoader_Load(t *testing.T) {
 		},
 	}
 
-	var testData = []struct {
+	testData := []struct {
 		desc    string
 		objects []client.Object
 		svc     types.NamespacedName
@@ -195,5 +195,4 @@ func TestServiceLoader_Load(t *testing.T) {
 			}
 		})
 	}
-
 }

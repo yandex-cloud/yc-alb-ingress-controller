@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -18,7 +20,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -47,7 +48,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 	}
 	instances := map[string]*compute.Instance{instance1.Id: instance1, instance2.Id: instance2}
 
-	fn := func(ctx context.Context, id string) (instance *compute.Instance, err error) {
+	fn := func(_ context.Context, id string) (instance *compute.Instance, err error) {
 		if instance = instances[id]; instance == nil {
 			err = status.Errorf(codes.NotFound, "instance %s not found", id)
 		}
@@ -84,7 +85,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 					Endpoints: []discovery.Endpoint{
 						{
-							NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-inod"),
+							NodeName: ptr.To("cl1mkq03gu56o26iia82-inod"),
 						},
 					},
 				},
@@ -98,7 +99,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 					Endpoints: []discovery.Endpoint{
 						{
-							NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-ydoj"),
+							NodeName: ptr.To("cl1mkq03gu56o26iia82-ydoj"),
 						},
 					},
 				},
@@ -159,7 +160,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 					Endpoints: []discovery.Endpoint{
 						{
-							NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-inod"),
+							NodeName: ptr.To("cl1mkq03gu56o26iia82-inod"),
 						},
 					},
 				},
@@ -191,7 +192,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 					Endpoints: []discovery.Endpoint{
 						{
-							NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-inod"),
+							NodeName: ptr.To("cl1mkq03gu56o26iia82-inod"),
 						},
 					},
 				},
@@ -205,7 +206,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 					Endpoints: []discovery.Endpoint{
 						{
-							NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-ydoj"),
+							NodeName: ptr.To("cl1mkq03gu56o26iia82-ydoj"),
 						},
 					},
 				},
@@ -262,10 +263,10 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 						{
 							Addresses: []v1.EndpointAddress{
 								{
-									NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-inod"),
+									NodeName: ptr.To("cl1mkq03gu56o26iia82-inod"),
 								},
 								{
-									NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-ydoj"),
+									NodeName: ptr.To("cl1mkq03gu56o26iia82-ydoj"),
 								},
 							},
 						},
@@ -327,7 +328,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 						{
 							Addresses: []v1.EndpointAddress{
 								{
-									NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-inod"),
+									NodeName: ptr.To("cl1mkq03gu56o26iia82-inod"),
 								},
 							},
 						},
@@ -360,10 +361,10 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 						{
 							Addresses: []v1.EndpointAddress{
 								{
-									NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-inod"),
+									NodeName: ptr.To("cl1mkq03gu56o26iia82-inod"),
 								},
 								{
-									NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-ydoj"),
+									NodeName: ptr.To("cl1mkq03gu56o26iia82-ydoj"),
 								},
 							},
 						},
@@ -426,7 +427,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 					Endpoints: []discovery.Endpoint{
 						{
-							NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-ydoj"),
+							NodeName: ptr.To("cl1mkq03gu56o26iia82-ydoj"),
 						},
 					},
 				},
@@ -445,10 +446,11 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 				},
 			},
-			expTargets: []*apploadbalancer.Target{{
-				AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "2001:0db8:0001:0000:0000:0ab9:C0A8:0102"},
-				SubnetId:    "subnet_2",
-			},
+			expTargets: []*apploadbalancer.Target{
+				{
+					AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "2001:0db8:0001:0000:0000:0ab9:C0A8:0102"},
+					SubnetId:    "subnet_2",
+				},
 			},
 		},
 		{
@@ -474,7 +476,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 					Endpoints: []discovery.Endpoint{
 						{
-							NodeName: pointer.StringPtr("cl1mkq03gu56o26iia82-ydoj"),
+							NodeName: ptr.To("cl1mkq03gu56o26iia82-ydoj"),
 						},
 					},
 				},
@@ -492,10 +494,11 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 				},
 			},
-			expTargets: []*apploadbalancer.Target{{
-				AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.28"},
-				SubnetId:    "subnet_2",
-			},
+			expTargets: []*apploadbalancer.Target{
+				{
+					AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.28"},
+					SubnetId:    "subnet_2",
+				},
 			},
 		},
 	}

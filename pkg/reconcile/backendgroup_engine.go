@@ -38,7 +38,6 @@ func (r *BackendGroupEngine) ReconcileBackendGroup(ctx context.Context, bg *appl
 		protoMsg, _ := sdkoperation.UnmarshalAny(op.Metadata)
 		exp.Id = protoMsg.(*apploadbalancer.CreateBackendGroupMetadata).BackendGroupId
 		return &deploy.ReconciledBackendGroups{Active: []*apploadbalancer.BackendGroup{exp}}, nil
-
 	}
 
 	exp.Id = bg.Id

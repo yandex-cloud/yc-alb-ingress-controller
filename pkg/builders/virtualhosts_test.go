@@ -285,7 +285,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		appendedRoute0 = &apploadbalancer.Route{
-			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1", //should be added second
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1", // should be added second
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -302,7 +302,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 		appendedRoute1 = &apploadbalancer.Route{
-			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1", //should be added second
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1", // should be added second
 			Route: &apploadbalancer.Route_Http{
 				Http: &apploadbalancer.HttpRoute{
 					Match: &apploadbalancer.HttpRouteMatch{
@@ -406,7 +406,7 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		}
 	)
-	var testData = []struct {
+	testData := []struct {
 		desc          string
 		rules         []*networking.IngressRule
 		redirectRules []*networking.IngressRule
@@ -420,10 +420,10 @@ func TestVirtualHosts(t *testing.T) {
 			redirectRules: []*networking.IngressRule{rule4},
 			exp: VirtualHostData{
 				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					HostAndPath{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
-					HostAndPath{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        route1,
-					HostAndPath{Host: "example2.com", Path: "/saunter", PathType: string(networking.PathTypeExact)}:       route2,
-					HostAndPath{Host: "example1.com", Path: "/stagger", PathType: string(networking.PathTypeExact)}:       route3,
+					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
+					{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        route1,
+					{Host: "example2.com", Path: "/saunter", PathType: string(networking.PathTypeExact)}:       route2,
+					{Host: "example1.com", Path: "/stagger", PathType: string(networking.PathTypeExact)}:       route3,
 				},
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
@@ -452,9 +452,9 @@ func TestVirtualHosts(t *testing.T) {
 			routeOpts:     RouteResolveOpts{UseRegex: true},
 			exp: VirtualHostData{
 				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					HostAndPath{Host: "example1.com", Path: "/tread/lightly", PathType: PathTypeRegex}: regexroute0,
-					HostAndPath{Host: "example2.com", Path: "/saunter", PathType: PathTypeRegex}:       regexroute1,
-					HostAndPath{Host: "example1.com", Path: "/stagger", PathType: PathTypeRegex}:       regexroute2,
+					{Host: "example1.com", Path: "/tread/lightly", PathType: PathTypeRegex}: regexroute0,
+					{Host: "example2.com", Path: "/saunter", PathType: PathTypeRegex}:       regexroute1,
+					{Host: "example1.com", Path: "/stagger", PathType: PathTypeRegex}:       regexroute2,
 				},
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
@@ -483,10 +483,10 @@ func TestVirtualHosts(t *testing.T) {
 			routeOpts:     RouteResolveOpts{BackendType: GRPC},
 			exp: VirtualHostData{
 				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					HostAndPath{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: routeGRPC0,
-					HostAndPath{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        routeGRPC1,
-					HostAndPath{Host: "example2.com", Path: "/saunter", PathType: string(networking.PathTypeExact)}:       routeGRPC2,
-					HostAndPath{Host: "example1.com", Path: "/stagger", PathType: string(networking.PathTypeExact)}:       routeGRPC3,
+					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: routeGRPC0,
+					{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        routeGRPC1,
+					{Host: "example2.com", Path: "/saunter", PathType: string(networking.PathTypeExact)}:       routeGRPC2,
+					{Host: "example1.com", Path: "/stagger", PathType: string(networking.PathTypeExact)}:       routeGRPC3,
 				},
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
@@ -531,8 +531,8 @@ func TestVirtualHosts(t *testing.T) {
 			},
 			exp: VirtualHostData{
 				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					HostAndPath{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
-					HostAndPath{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        route1,
+					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
+					{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        route1,
 				},
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
@@ -595,7 +595,7 @@ func TestVirtualHosts(t *testing.T) {
 			redirectRules: []*networking.IngressRule{rule1},
 			exp: VirtualHostData{
 				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					HostAndPath{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
+					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
 				},
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
@@ -617,8 +617,8 @@ func TestVirtualHosts(t *testing.T) {
 			rules: []*networking.IngressRule{rule1, rule1OverwriteForPrefix},
 			exp: VirtualHostData{
 				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					HostAndPath{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}:  route0,
-					HostAndPath{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypePrefix)}: appendedRoute0,
+					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}:  route0,
+					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypePrefix)}: appendedRoute0,
 				},
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
@@ -640,7 +640,7 @@ func TestVirtualHosts(t *testing.T) {
 			rules: []*networking.IngressRule{rule1, rule1OverwriteForExact},
 			exp: VirtualHostData{
 				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					HostAndPath{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: appendedRoute1,
+					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: appendedRoute1,
 				},
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
@@ -662,7 +662,7 @@ func TestVirtualHosts(t *testing.T) {
 			rules: []*networking.IngressRule{emptyPathRule},
 			exp: VirtualHostData{
 				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					HostAndPath{Host: "example1.com", Path: "", PathType: string(implementationSpecific)}: emptyPathRoute,
+					{Host: "example1.com", Path: "", PathType: string(implementationSpecific)}: emptyPathRoute,
 				},
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",

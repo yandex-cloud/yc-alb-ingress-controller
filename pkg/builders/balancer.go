@@ -15,7 +15,8 @@ type BalancerBuilder struct {
 }
 
 func (b *BalancerBuilder) Build(handler *apploadbalancer.HttpHandler, matches []*apploadbalancer.SniMatch, logOpts *apploadbalancer.LogOptions,
-	opts Options) *apploadbalancer.LoadBalancer {
+	opts Options,
+) *apploadbalancer.LoadBalancer {
 	return &apploadbalancer.LoadBalancer{
 		FolderId:         b.folderID,
 		Name:             b.names.ALB(b.tag),

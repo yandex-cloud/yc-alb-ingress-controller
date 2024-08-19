@@ -35,7 +35,8 @@ type DefaultEngineBuilder struct {
 
 func NewDefaultDataBuilder(
 	factory *builders.Factory, resolvers *builders.Resolvers,
-	newEngine func(data *builders.Data) *IngressGroupEngine, folderID string, names *metadata.Names, certRepo yc.CertRepo, bgFinder builders.BackendGroupFinder) *DefaultEngineBuilder {
+	newEngine func(data *builders.Data) *IngressGroupEngine, folderID string, names *metadata.Names, certRepo yc.CertRepo, bgFinder builders.BackendGroupFinder,
+) *DefaultEngineBuilder {
 	return &DefaultEngineBuilder{
 		folderID:  folderID,
 		factory:   factory,
@@ -150,16 +151,6 @@ func (d *DefaultEngineBuilder) vhOpts(ing networking.Ingress) (builders.VirtualH
 		annotations[k8s.ModifyResponseHeaderAppend],
 		annotations[k8s.ModifyResponseHeaderReplace],
 		annotations[k8s.SecurityProfileID],
-	)
-}
-
-func (d *DefaultEngineBuilder) backendOpts(ing networking.Ingress) (builders.BackendResolveOpts, error) {
-	annotations := ing.GetAnnotations()
-	r := d.resolvers.BackendOpts()
-	return r.Resolve(
-		annotations[k8s.Protocol], annotations[k8s.BalancingMode], annotations[k8s.TransportSecurity],
-		annotations[k8s.SessionAffinityHeader], annotations[k8s.SessionAffinityCookie],
-		annotations[k8s.SessionAffinityConnection], annotations[k8s.HealthChecks],
 	)
 }
 
@@ -476,7 +467,8 @@ func (d *DefaultEngineBuilder) buildHTTPHandler(_ *k8s.IngressGroup) *apploadbal
 }
 
 func (d *DefaultEngineBuilder) buildBalancer(handler *apploadbalancer.HttpHandler, matches []*apploadbalancer.SniMatch, logOpts *apploadbalancer.LogOptions,
-	tag string, opts builders.Options) *apploadbalancer.LoadBalancer {
+	tag string, opts builders.Options,
+) *apploadbalancer.LoadBalancer {
 	b := d.factory.BalancerBuilder(tag)
 	return b.Build(handler, matches, logOpts, opts)
 }
@@ -495,7 +487,7 @@ func (d *DefaultEngineBuilder) buildLogOptions(settings *v1alpha1.IngressGroupSe
 			intervals = append(intervals, apploadbalancer.HttpCodeInterval(apploadbalancer.HttpCodeInterval_value[interval]))
 		}
 
-		grpcCodes := make([]code.Code, 0, 0)
+		grpcCodes := make([]code.Code, 0)
 		for _, grpcCode := range rule.GRPCCodes {
 			grpcCodes = append(grpcCodes, code.Code(code.Code_value[grpcCode]))
 		}

@@ -3,11 +3,12 @@ package builders
 import (
 	"context"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/vpc/v1"
@@ -32,6 +33,7 @@ func NewResolvers(repo SubnetRepository) *Resolvers {
 func (r *Resolvers) Addresses(p AddressParams) *AddressesResolver {
 	return &AddressesResolver{defaultSubnetID: p.DefaultSubnetID}
 }
+
 func (r *Resolvers) Location() *LocationsResolver {
 	return &LocationsResolver{
 		repo:      r.repo,
@@ -56,8 +58,7 @@ func (r *Resolvers) BackendOpts() BackendOptsResolver {
 	return BackendOptsResolver{}
 }
 
-type BackendOptsResolver struct {
-}
+type BackendOptsResolver struct{}
 
 type SessionAffinityOpts struct {
 	cookie     *apploadbalancer.CookieSessionAffinity
@@ -302,16 +303,17 @@ func (r *AddressesResolver) Result() ([]*apploadbalancer.Address, error) {
 			}})
 		}
 		internalIPv4 = func(s string) {
-			addrs = append(addrs, &apploadbalancer.Address{Address: &apploadbalancer.Address_InternalIpv4Address{
-				InternalIpv4Address: &apploadbalancer.InternalIpv4Address{
-					Address:  s,
-					SubnetId: r.data.SubnetID,
-				}},
+			addrs = append(addrs, &apploadbalancer.Address{
+				Address: &apploadbalancer.Address_InternalIpv4Address{
+					InternalIpv4Address: &apploadbalancer.InternalIpv4Address{
+						Address:  s,
+						SubnetId: r.data.SubnetID,
+					},
+				},
 			})
 		}
 		addressFn = func(s string, fn func(string)) {
-			if s == "" || r.err != nil {
-			} else {
+			if !(s == "" || r.err != nil) {
 				if s == autoAddress {
 					s = autoIP
 				}
@@ -343,7 +345,7 @@ type LocationsResolver struct {
 }
 
 func (r *LocationsResolver) Resolve(subnetStr string) error {
-	//TODO: may be no need to fail on resolve, returning error from Result() is enough
+	// TODO: may be no need to fail on resolve, returning error from Result() is enough
 	subnetIDs := strings.Split(subnetStr, sep)
 
 	for i, subnetID := range subnetIDs {
@@ -353,7 +355,7 @@ func (r *LocationsResolver) Resolve(subnetStr string) error {
 
 		subnet, err := r.repo.FindSubnetByID(context.Background(), subnetID)
 		if err != nil {
-			return fmt.Errorf("error retrieving subnet %s: %v ", subnetID, err)
+			return fmt.Errorf("error retrieving subnet %s: %w ", subnetID, err)
 		}
 		r.subnetIDs[subnetID] = struct{}{}
 		if _, ok := r.zoneIDs[subnet.ZoneId]; ok {

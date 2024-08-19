@@ -33,7 +33,7 @@ func TestLocationsNeedUpdate(t *testing.T) {
 			DisableTraffic: true,
 		}
 	)
-	var testData = []struct {
+	testData := []struct {
 		desc   string
 		l1, l2 []*apploadbalancer.Location
 		exp    bool
@@ -136,7 +136,7 @@ func TestBackendGroupNeedsUpdate(t *testing.T) {
 			},
 		}
 	)
-	var testData = []struct {
+	testData := []struct {
 		desc     string
 		bg1, bg2 *apploadbalancer.BackendGroup
 		exp      bool

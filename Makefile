@@ -153,10 +153,13 @@ imports: goimports ## Run goimports on all go files
 
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 golangci-lint: ## Download golangci-lint locally if necessary.
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1)
 
 lint: golangci-lint
 	$(Q) $(GOLANGCI_LINT) run ./... -v
+
+lint-fix: golangci-lint
+	$(Q) $(GOLANGCI_LINT) run ./... -v --fix
 
 ci: lint
 	go test ./...

@@ -16,8 +16,8 @@ import (
 )
 
 func TestTargetGroupDeployer(t *testing.T) {
-	var fakeOp = &operation.Operation{Id: "1234"}
-	var errOpIncomplete = ycerrors.OperationIncompleteError{ID: fakeOp.Id}
+	fakeOp := &operation.Operation{Id: "1234"}
+	errOpIncomplete := ycerrors.OperationIncompleteError{ID: fakeOp.Id}
 
 	ctx := context.Background()
 

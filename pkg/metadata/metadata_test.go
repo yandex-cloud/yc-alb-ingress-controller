@@ -16,8 +16,8 @@ func TestMetadata(t *testing.T) {
 	assert.Equal(t, "httprouter-3f6ec083f1ed93da6af133418a353ad2fb006551", names.Router(tag))
 	assert.Equal(t, "vh-69eef76c3e9be19a930f68bf31799e5872bf6914-1", names.VirtualHostForRule(ns, name, tag, 1))
 	assert.Equal(t, "sni-69eef76c3e9be19a930f68bf31799e5872bf6914-1", names.SNIMatchForRule(ns, name, tag, 1))
-	//assert.Equal(t, "route-3f6ec083f1ed93da6af133418a353ad2fb006551-1", names.RouteForPath(tag, 1))
-	//assert.Equal(t, "bg-fb4c56872101fb16143589dd48258b6c92770485-8080", names.BackendGroup(tag, ns, "app-svc", 8080))
+	// assert.Equal(t, "route-3f6ec083f1ed93da6af133418a353ad2fb006551-1", names.RouteForPath(tag, 1))
+	// assert.Equal(t, "bg-fb4c56872101fb16143589dd48258b6c92770485-8080", names.BackendGroup(tag, ns, "app-svc", 8080))
 	assert.Equal(t, "backend-fb4c56872101fb16143589dd48258b6c92770485-8080", names.Backend(tag, ns, "app-svc", 8080, 30080))
 }
 

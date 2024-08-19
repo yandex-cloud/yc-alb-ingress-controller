@@ -17,7 +17,6 @@ func IsTLS(host string, tls []networking.IngressTLS) bool {
 }
 
 func GetNodeInternalIP(node *corev1.Node, preferIPv6 bool) (string, error) {
-
 	res := ""
 	for _, address := range node.Status.Addresses {
 		if address.Type != corev1.NodeInternalIP {

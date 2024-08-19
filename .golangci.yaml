@@ -1,0 +1,34 @@
+run:
+  # Timeout for analysis, e.g. 30s, 5m.
+  timeout: 5m
+linters:
+  # Disable all linters.
+  disable-all: true
+  # Enable all available linters.
+  enable-all: false
+  # Enable specific linter
+  enable:
+    - errcheck # Checks for incorrect uses of errors.
+    - gosimple # Simplifies Go code by identifying common constructs that can be simplified.
+    - govet # Vet examines Go source code and reports suspicious constructs.
+    - gofmt # Formats Go source code according to official standards.
+    - goimports # Ensures import statements in Go code are correctly formatted.
+    - ineffassign # Detects unassigned variables that could lead to runtime errors.
+    - copyloopvar # Named copyloopvar for copying loop variables.
+    - decorder # Checks struct constructors for the correct order of parameters.
+    - errorlint # Enforces best practices for handling errors in Go.
+    - exportloopref # Detects issues when exporting loop variables.
+    - gocheckcompilerdirectives # Checks for proper usage of Go compiler directives.
+    - gofumpt # Static code analysis and optimization tool.
+    - loggercheck # Detects issues specific to logger implementations.
+    - misspell # Checks for spelling errors in comments, identifiers, etc.
+    - nilerr # Detects nil error assignments.
+    - promlinter # Static analysis tool for finding performance issues.
+    - revive # Commonly used linter for commonly made mistakes.
+    - staticcheck # Contains many different kinds of static analyses for Go code.
+    - unused # Identifies unused variables, fields, functions, etc.
+    - unconvert # Simplifies code by identifying unnecessary type conversions.
+    - whitespace # Checks for inappropriate use of whitespace in Go code.
+issues:
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0

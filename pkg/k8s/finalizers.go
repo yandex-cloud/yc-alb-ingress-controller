@@ -11,7 +11,8 @@ type FinalizerManager struct{ Client client.Client }
 func (m *FinalizerManager) UpdateFinalizer(ctx context.Context, o client.Object, finalizer string) error {
 	var i int
 	finalizers := o.GetFinalizers()
-	for ; i < len(finalizers) && finalizers[i] != finalizer; i++ {
+	for i < len(finalizers) && finalizers[i] != finalizer {
+		i++
 	}
 	if i < len(finalizers) {
 		return nil

@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +16,6 @@ import (
 	v12 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
@@ -39,18 +40,16 @@ func TestBackendGroups(t *testing.T) {
 		}
 	)
 
-	var (
-		svc1 = &v12.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "v1"},
-			ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "service1"},
-			Spec: v12.ServiceSpec{
-				Type: v12.ServiceTypeNodePort,
-				Ports: []v12.ServicePort{
-					port0080, port0081,
-				},
+	svc1 := &v12.Service{
+		TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "service1"},
+		Spec: v12.ServiceSpec{
+			Type: v12.ServiceTypeNodePort,
+			Ports: []v12.ServicePort{
+				port0080, port0081,
 			},
-		}
-	)
+		},
+	}
 
 	targetGroupsBackend := &apploadbalancer.TargetGroupsBackend{
 		TargetGroupIds: []string{
@@ -254,7 +253,6 @@ func TestBackendGroups(t *testing.T) {
 
 	for _, tc := range testData {
 		t.Run(tc.desc, func(t *testing.T) {
-
 			b := BackendGroupBuilder{
 				FolderID: "my-folder",
 				Names:    &metadata.Names{ClusterID: "my-cluster"},
@@ -410,7 +408,8 @@ func TestBackendGroups_BuildBgFromCR(t *testing.T) {
 									Sni: "my.fancy.srv",
 									ValidationContext: &apploadbalancer.ValidationContext{
 										TrustedCa: &apploadbalancer.ValidationContext_TrustedCaBytes{
-											TrustedCaBytes: "abcdefxxxx"},
+											TrustedCaBytes: "abcdefxxxx",
+										},
 									},
 								},
 								UseHttp2: false,
@@ -494,7 +493,8 @@ func TestBackendGroups_BuildBgFromCR(t *testing.T) {
 									Sni: "my.fancy.srv",
 									ValidationContext: &apploadbalancer.ValidationContext{
 										TrustedCa: &apploadbalancer.ValidationContext_TrustedCaBytes{
-											TrustedCaBytes: "abcdefxxxx"},
+											TrustedCaBytes: "abcdefxxxx",
+										},
 									},
 								},
 								UseHttp2: false,
@@ -566,7 +566,8 @@ func TestBackendGroups_BuildBgFromCR(t *testing.T) {
 									Sni: "my.fancy.srv",
 									ValidationContext: &apploadbalancer.ValidationContext{
 										TrustedCa: &apploadbalancer.ValidationContext_TrustedCaBytes{
-											TrustedCaBytes: "abcdefxxxx"},
+											TrustedCaBytes: "abcdefxxxx",
+										},
 									},
 								},
 								UseHttp2: false,
@@ -728,7 +729,8 @@ func TestBackendGroups_BuildBgFromCR(t *testing.T) {
 									Sni: "my.fancy.srv",
 									ValidationContext: &apploadbalancer.ValidationContext{
 										TrustedCa: &apploadbalancer.ValidationContext_TrustedCaBytes{
-											TrustedCaBytes: "abcdefxxxx"},
+											TrustedCaBytes: "abcdefxxxx",
+										},
 									},
 								},
 								UseHttp2: false,
@@ -921,7 +923,7 @@ func TestBackendGroups_BuildBgFromCR(t *testing.T) {
 									HTTP: &v1alpha1.HTTPHealthCheck{
 										Path: "/health",
 									},
-									Port:               pointer.Int64Ptr(30080),
+									Port:               ptr.To[int64](30080),
 									UnhealthyThreshold: 5,
 									HealthyThreshold:   5,
 									Interval:           &metav1.Duration{Duration: time.Second * 5},
@@ -1068,7 +1070,7 @@ func TestBackendGroups_BuildBgFromCR(t *testing.T) {
 									HTTP: &v1alpha1.HTTPHealthCheck{
 										Path: "/health",
 									},
-									Port:               pointer.Int64Ptr(30080),
+									Port:               ptr.To[int64](30080),
 									UnhealthyThreshold: 5,
 									HealthyThreshold:   5,
 									Interval:           &metav1.Duration{Duration: time.Second * 5},

@@ -3,6 +3,7 @@ package builders
 import (
 	"context"
 	"fmt"
+
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -74,7 +75,6 @@ func HTTPIngressPathToHostAndPath(host string, path networking.HTTPIngressPath, 
 // exposedNodePort - exposed NodePort and route which will be served by a service which opened it
 type exposedNodePort struct {
 	port int64
-	hp   HostAndPath
 }
 
 type BackendResolveOpts struct {
@@ -102,8 +102,6 @@ type BackendGroups struct {
 type BackendGroupBuilder struct {
 	FolderID string
 	Names    *metadata.Names
-
-	resolver BackendOptsResolver
 }
 
 func (b *BackendGroupBuilder) Build(svc *core.Service, ings []networking.Ingress, tgID string) (*apploadbalancer.BackendGroup, error) {
@@ -149,7 +147,7 @@ func (b *BackendGroupBuilder) build(svc *core.Service, nodePorts []core.ServiceP
 
 		backend = &apploadbalancer.BackendGroup_Grpc{Grpc: &apploadbalancer.GrpcBackendGroup{Backends: backends, SessionAffinity: sessionAffinity}}
 	} else {
-		backends, err := b.buildHttpBackends(
+		backends, err := b.buildHTTPBackends(
 			svc, tgID, nodePorts, balancingConfig,
 			tls, opts.BackendType == HTTP2, opts.healthChecks,
 		)
@@ -304,7 +302,7 @@ func collectPortsForService(svc *core.Service, ings []networking.Ingress) ([]cor
 	return result, nil
 }
 
-func (b *BackendGroupBuilder) buildHttpBackends(
+func (b *BackendGroupBuilder) buildHTTPBackends(
 	svc *core.Service, tgID string,
 	ports []core.ServicePort,
 	balancingConfig *apploadbalancer.LoadBalancingConfig,
@@ -362,7 +360,7 @@ type BackendGroupForCRDBuilder struct {
 	folderID   string
 	seenSvc    map[exposedNodePort]struct{}
 	seenBucket map[string]struct{}
-	tag        string //TODO: delete
+	tag        string // TODO: delete
 
 	targetGroupFinder TargetGroupFinder
 }
@@ -488,7 +486,7 @@ func (b *BackendGroupForCRDBuilder) buildBackendForService(ns string, crdBackend
 	for _, port := range svcBackendPorts {
 		nodePort := int64(port.NodePort)
 		if _, ok := b.seenSvc[exposedNodePort{port: nodePort}]; ok {
-			//backend for this service and NodePort has already been added to this backend group
+			// backend for this service and NodePort has already been added to this backend group
 			continue
 		}
 
@@ -631,7 +629,7 @@ func (b *BackendGroupForCRDBuilder) buildBackendForBucket(namespace string, crdB
 	}
 
 	return &apploadbalancer.HttpBackend{
-		Name:          b.names.Backend(b.tag, namespace, crdBackend.StorageBucket.Name, 0, 0), //TODO: fix naming
+		Name:          b.names.Backend(b.tag, namespace, crdBackend.StorageBucket.Name, 0, 0), // TODO: fix naming
 		BackendWeight: &wrappers.Int64Value{Value: crdBackend.Weight},
 		BackendType: &apploadbalancer.HttpBackend_StorageBucket{
 			StorageBucket: &apploadbalancer.StorageBucketBackend{Bucket: crdBackend.StorageBucket.Name},

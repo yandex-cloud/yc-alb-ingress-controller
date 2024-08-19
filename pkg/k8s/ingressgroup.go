@@ -68,7 +68,7 @@ func (l *Loader) Load(ctx context.Context, nsName types.NamespacedName) (*Ingres
 		if managed && !deleted {
 			prior, err := parseOrder(item.GetAnnotations()[OrderInGroup])
 			if err != nil {
-				return nil, fmt.Errorf("error getting order of ingress %s: %e", item.Name, err)
+				return nil, fmt.Errorf("error getting order of ingress %s: %w", item.Name, err)
 			}
 
 			retItems = append(retItems,

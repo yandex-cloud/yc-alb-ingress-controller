@@ -62,7 +62,7 @@ func TestGroupSettingsLoader_Load(t *testing.T) {
 		},
 	}
 
-	var testData = []struct {
+	testData := []struct {
 		desc    string
 		objects []client.Object
 		g       IngressGroup
@@ -125,7 +125,6 @@ func TestGroupSettingsLoader_Load(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func ingWithSettingsAnnotation(name, annotation string) networking.Ingress {

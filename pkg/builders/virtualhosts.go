@@ -15,8 +15,10 @@ import (
 
 //go:generate mockgen -destination=./mocks/backendgroups.go -package=mocks . BackendGroupFinder
 
-type createRouteFn func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error)
-type createRouteWithSvcFn func(name string, match *apploadbalancer.StringMatch, svcName string) (*apploadbalancer.Route, error)
+type (
+	createRouteFn        func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error)
+	createRouteWithSvcFn func(name string, match *apploadbalancer.StringMatch, svcName string) (*apploadbalancer.Route, error)
+)
 
 type BackendGroupFinder interface {
 	FindBackendGroup(ctx context.Context, name string) (*apploadbalancer.BackendGroup, error)
@@ -145,7 +147,7 @@ func (b *VirtualHostBuilder) AddHTTPDirectResponse(hp HostAndPath, directRespons
 }
 
 func (b *VirtualHostBuilder) AddRedirect(hp HostAndPath, redirect *apploadbalancer.RedirectAction) error {
-	//do not overwrite route action with redirect
+	// do not overwrite route action with redirect
 	if _, ok := b.httpRouteMap[hp]; ok {
 		return nil
 	}
@@ -161,7 +163,7 @@ func (b *VirtualHostBuilder) AddRedirect(hp HostAndPath, redirect *apploadbalanc
 }
 
 func (b *VirtualHostBuilder) AddHTTPRedirect(hp HostAndPath) error {
-	//do not overwrite route action with redirect
+	// do not overwrite route action with redirect
 	if _, ok := b.httpRouteMap[hp]; ok {
 		return nil
 	}
@@ -270,7 +272,7 @@ func (b *VirtualHostBuilder) addRoute(hp HostAndPath, createRoute createRouteFn)
 	if _, ok := b.httpRouteMap[hp]; !ok {
 		b.routeOrder = append(b.routeOrder, hp)
 	}
-	//overwrite with subsequent route for the same Host&Path. Shall we throw an error instead?
+	// overwrite with subsequent route for the same Host&Path. Shall we throw an error instead?
 	b.httpRouteMap[hp] = route
 	return nil
 }

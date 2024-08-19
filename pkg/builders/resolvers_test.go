@@ -2,6 +2,8 @@ package builders
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -9,7 +11,6 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/vpc/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"testing"
 
 	"github.com/yandex-cloud/alb-ingress/pkg/builders/mocks"
 )

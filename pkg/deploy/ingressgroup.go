@@ -74,7 +74,6 @@ func (m *IngressGroupDeployManager) Deploy(ctx context.Context, tag string, engi
 		Router:    httpRouter.Garbage,
 		TLSRouter: tlsRouter.Garbage,
 	})
-
 	if err != nil {
 		return yc.BalancerResources{}, err
 	}

@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"strings"
+
 	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
 	"k8s.io/client-go/tools/record"
-	"strings"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/certificatemanager/v1"
 	v1 "k8s.io/api/core/v1"
@@ -45,12 +46,13 @@ func NewSecretController(cli client.Client, certRepo yc.CertRepo, names *metadat
 
 func (sc *SecretController) SetupWithManager(mgr ctrl.Manager, secretEventChan chan event.GenericEvent) error {
 	secretMapFn := func(a client.Object) []reconcile.Request {
-		return []reconcile.Request{{
-			NamespacedName: types.NamespacedName{
-				Name:      a.GetName(),
-				Namespace: a.GetNamespace(),
+		return []reconcile.Request{
+			{
+				NamespacedName: types.NamespacedName{
+					Name:      a.GetName(),
+					Namespace: a.GetNamespace(),
+				},
 			},
-		},
 		}
 	}
 

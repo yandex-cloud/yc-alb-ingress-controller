@@ -18,10 +18,11 @@ func NewBackendGroupEngineBuilder(factory *builders.Factory, newEngineFn func(da
 		newBackendGroupEngine: newEngineFn,
 	}
 }
+
 func (d *DefaultBackendGroupEngineBuilder) Build(crd *albv1alpha1.HttpBackendGroup) (*BackendGroupEngine, error) {
 	b := builders.Data{}
 	var err error
-	//TODO: using builders.BackendGroups for only one BG doesn't seem quite right
+	// TODO: using builders.BackendGroups for only one BG doesn't seem quite right
 	b.BackendGroups, err = d.buildBackendGroups(crd)
 	if err != nil {
 		return nil, err

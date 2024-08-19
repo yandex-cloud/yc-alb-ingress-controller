@@ -55,7 +55,7 @@ func TestLoader_WithOrder(t *testing.T) {
 	ingNeg := ingWithOrder("-45")
 	ingGarbage := ingWithOrder("garbage")
 
-	var testData = []struct {
+	testData := []struct {
 		desc    string
 		ings    []client.Object
 		exp     []v1.Ingress
@@ -100,7 +100,6 @@ func TestLoader_WithOrder(t *testing.T) {
 			assertGroupsEqual(t, IngressGroup{Items: entry.exp}, *g)
 		})
 	}
-
 }
 
 func TestLoader_LoadWithClasses(t *testing.T) {
@@ -162,7 +161,7 @@ func TestLoader_LoadWithClasses(t *testing.T) {
 	ingWithoutAlbTag.Finalizers = append(ingWithoutAlbTag.Finalizers, Finalizer)
 	delete(ingWithoutAlbTag.ObjectMeta.Annotations, AlbTag)
 
-	var testData = []struct {
+	testData := []struct {
 		desc    string
 		objs    []client.Object
 		exp     IngressGroup
@@ -200,8 +199,10 @@ func TestLoader_LoadWithClasses(t *testing.T) {
 		},
 		{
 			desc: "mixed",
-			objs: []client.Object{&ingWithoutClass, &correctIng, &incorrectIng, &correctIngDefault, &noMoreManagedIng,
-				&notdefaultClass, &notdefaultClassWrongControllerName, &defaultClass, &ingWithoutAlbTag},
+			objs: []client.Object{
+				&ingWithoutClass, &correctIng, &incorrectIng, &correctIngDefault, &noMoreManagedIng,
+				&notdefaultClass, &notdefaultClassWrongControllerName, &defaultClass, &ingWithoutAlbTag,
+			},
 			exp: IngressGroup{
 				Items:   []v1.Ingress{correctIngDefault, correctIng, ingWithoutClass},
 				Deleted: []v1.Ingress{noMoreManagedIng, ingWithoutAlbTag},
