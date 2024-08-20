@@ -325,8 +325,6 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 	var ingWithDefaultBackend *networking.Ingress
 
 	for _, ing := range g.Items {
-		ing := ing // https://go.dev/wiki/CommonMistakes
-
 		if ing.Spec.DefaultBackend != nil && ingWithDefaultBackend != nil {
 			return nil, nil, fmt.Errorf("default backend can be specified only once, ingress-group: %s", g.Tag)
 		}

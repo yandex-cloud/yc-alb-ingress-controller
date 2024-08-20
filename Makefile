@@ -145,7 +145,7 @@ gomod: ## Run go mod vendor
 
 GOIMPORTS = $(shell pwd)/bin/goimports
 goimports: ## Install goimports if necessary
-	$(call go-get-tool,$(GOIMPORTS),golang.org/x/tools/cmd/goimports@latest)
+	$(call go-get-tool,$(GOIMPORTS),golang.org/x/tools/cmd/goimports@v0.24.0)
 
 imports: goimports ## Run goimports on all go files
 	$(Q) $(GO_FILES_CMD) | xargs -n 50 $(GOIMPORTS) -w -local github.com/yandex-cloud/alb-ingress

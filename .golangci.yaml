@@ -17,7 +17,6 @@ linters:
     - copyloopvar # Named copyloopvar for copying loop variables.
     - decorder # Checks struct constructors for the correct order of parameters.
     - errorlint # Enforces best practices for handling errors in Go.
-    - exportloopref # Detects issues when exporting loop variables.
     - gocheckcompilerdirectives # Checks for proper usage of Go compiler directives.
     - gofumpt # Static code analysis and optimization tool.
     - loggercheck # Detects issues specific to logger implementations.
