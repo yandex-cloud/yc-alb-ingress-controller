@@ -1,4 +1,4 @@
-package controllers
+package secret
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 	"github.com/yandex-cloud/alb-ingress/pkg/yc"
 )
 
-type SecretController struct {
+type Controller struct {
 	cli   client.Client
 	names *metadata.Names
 
@@ -35,8 +35,8 @@ type SecretController struct {
 	recorder record.EventRecorder
 }
 
-func NewSecretController(cli client.Client, certRepo yc.CertRepo, names *metadata.Names) *SecretController {
-	return &SecretController{
+func NewController(cli client.Client, certRepo yc.CertRepo, names *metadata.Names) *Controller {
+	return &Controller{
 		cli:   cli,
 		names: names,
 
@@ -44,7 +44,7 @@ func NewSecretController(cli client.Client, certRepo yc.CertRepo, names *metadat
 	}
 }
 
-func (sc *SecretController) SetupWithManager(mgr ctrl.Manager, secretEventChan chan event.GenericEvent) error {
+func (sc *Controller) SetupWithManager(mgr ctrl.Manager, secretEventChan chan event.GenericEvent) error {
 	secretMapFn := func(a client.Object) []reconcile.Request {
 		return []reconcile.Request{
 			{
@@ -69,7 +69,7 @@ func (sc *SecretController) SetupWithManager(mgr ctrl.Manager, secretEventChan c
 	return c.Watch(&source.Channel{Source: secretEventChan}, handler.EnqueueRequestsFromMapFunc(secretMapFn))
 }
 
-func (sc *SecretController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (sc *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	rLog := log.FromContext(ctx).WithValues("name", req.NamespacedName, "kind", "Secret")
 	rLog.Info("Secret event detected")
 	secret, err := sc.doReconcile(ctx, req)
@@ -77,7 +77,7 @@ func (sc *SecretController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return errors2.HandleError(err, rLog)
 }
 
-func (sc *SecretController) doReconcile(ctx context.Context, req reconcile.Request) (*v1.Secret, error) {
+func (sc *Controller) doReconcile(ctx context.Context, req reconcile.Request) (*v1.Secret, error) {
 	certs, err := sc.repo.LoadCertificates(ctx)
 	if err != nil {
 		return nil, err

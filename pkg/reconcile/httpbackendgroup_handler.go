@@ -8,35 +8,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	"github.com/yandex-cloud/alb-ingress/pkg/deploy"
 	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
 	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
 	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
 )
 
-// TODO: move where it can exported, or refactor FinalizerManager to have it as a field
-const finalizer = "ingress.ya.ru/final"
-
-type Builder interface {
-	Build(g *v1alpha1.HttpBackendGroup) (*apploadbalancer.BackendGroup, error)
-}
-
 type BackendGroupRepo interface {
 	FindBackendGroupByCR(ctx context.Context, ns, name string) (*apploadbalancer.BackendGroup, error)
-	Repository
+	backendGroupRepository
 }
 
-type BackendGroupEngineBuilder interface {
-	Build(crd *v1alpha1.HttpBackendGroup) (*BackendGroupEngine, error)
+type HttpBackendGroupForCrdBuilder interface { // nolint:revive
+	BuildForCrd(ctx context.Context, crd *v1alpha1.HttpBackendGroup) (*apploadbalancer.BackendGroup, error)
 }
 
-type Deployer interface {
-	Deploy(ctx context.Context, name string, re deploy.BackendGroupsReconcileEngine) (*apploadbalancer.BackendGroup, error)
+type BackendGroupDeployer interface {
+	Deploy(ctx context.Context, exp *apploadbalancer.BackendGroup) (*apploadbalancer.BackendGroup, error)
 }
 
-type BackendGroupReconcileHandler struct {
-	Builder          BackendGroupEngineBuilder
-	Deployer         Deployer
+type HttpBackendGroupReconcileHandler struct { //nolint:revive
+	Builder          HttpBackendGroupForCrdBuilder
+	Deployer         BackendGroupDeployer
 	Repo             BackendGroupRepo
 	Predicates       UpdatePredicates
 	FinalizerManager *k8s.FinalizerManager
@@ -44,29 +36,31 @@ type BackendGroupReconcileHandler struct {
 	Names *metadata.Names
 }
 
-func (b *BackendGroupReconcileHandler) HandleResourceUpdated(ctx context.Context, o client.Object) error {
-	err := b.FinalizerManager.UpdateFinalizer(ctx, o, finalizer)
+func (b *HttpBackendGroupReconcileHandler) HandleResourceUpdated(ctx context.Context, o client.Object) error {
+	err := b.FinalizerManager.UpdateFinalizer(ctx, o, k8s.Finalizer)
 	if err != nil {
 		return err
 	}
-	engine, err := b.Builder.Build(o.(*v1alpha1.HttpBackendGroup))
+
+	hbg, err := b.Builder.BuildForCrd(ctx, o.(*v1alpha1.HttpBackendGroup))
 	if err != nil {
 		return err
 	}
-	_, err = b.Deployer.Deploy(ctx, b.Names.BackendGroupForCR(o.GetNamespace(), o.GetName()), engine)
+	_, err = b.Deployer.Deploy(ctx, hbg)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (b *BackendGroupReconcileHandler) HandleResourceDeleted(ctx context.Context, o client.Object) error {
+func (b *HttpBackendGroupReconcileHandler) HandleResourceDeleted(ctx context.Context, o client.Object) error {
 	bg, err := b.Repo.FindBackendGroupByCR(ctx, o.GetNamespace(), o.GetName())
 	if err != nil {
 		return err
 	}
 	if bg == nil {
-		return b.FinalizerManager.RemoveFinalizer(ctx, o, finalizer)
+		return b.FinalizerManager.RemoveFinalizer(ctx, o, k8s.Finalizer)
 	}
 	op, err := b.Repo.DeleteBackendGroup(ctx, bg)
 	if err != nil {
@@ -75,7 +69,7 @@ func (b *BackendGroupReconcileHandler) HandleResourceDeleted(ctx context.Context
 	return ycerrors.OperationIncompleteError{ID: op.Id}
 }
 
-func (b *BackendGroupReconcileHandler) HandleResourceNotFound(_ context.Context, _ types.NamespacedName) error {
+func (b *HttpBackendGroupReconcileHandler) HandleResourceNotFound(_ context.Context, _ types.NamespacedName) error {
 	/*
 		Solution1: if BackendGroup built from CRs is unambiguously named using its CRD name just delete it by name,
 		and if it existed -> requeue, otherwise reconciliation not needed

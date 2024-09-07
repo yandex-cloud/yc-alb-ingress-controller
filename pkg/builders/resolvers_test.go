@@ -424,6 +424,13 @@ func TestBackendOptsResolver(t *testing.T) {
 			Plaintext: &apploadbalancer.PlaintextTransportSettings{},
 		},
 	}
+	hc4 := healthCheckTemplate()
+	hc4.HealthcheckPort = 30104
+	hc4.Healthcheck = &apploadbalancer.HealthCheck_Grpc{
+		Grpc: &apploadbalancer.HealthCheck_GrpcHealthCheck{
+			ServiceName: "healthchecker",
+		},
+	}
 
 	testData := []struct {
 		desc               string
@@ -487,6 +494,25 @@ func TestBackendOptsResolver(t *testing.T) {
 				Secure:        false,
 				BalancingMode: "mode-1",
 				healthChecks:  []*apploadbalancer.HealthCheck{hc3},
+				affinityOpts: SessionAffinityOpts{
+					connection: &apploadbalancer.ConnectionSessionAffinity{
+						SourceIp: true,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			desc:               "OK, case 4",
+			protocol:           "http2",
+			balancingMode:      "mode-1",
+			affinityConnection: "source-ip=true",
+			healthChecks:       "port=30104,grpc-service-name=healthchecker",
+			exp: BackendResolveOpts{
+				BackendType:   HTTP2,
+				Secure:        false,
+				BalancingMode: "mode-1",
+				healthChecks:  []*apploadbalancer.HealthCheck{hc4},
 				affinityOpts: SessionAffinityOpts{
 					connection: &apploadbalancer.ConnectionSessionAffinity{
 						SourceIp: true,

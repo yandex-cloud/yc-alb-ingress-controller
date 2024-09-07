@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package grpcbackendgroup
 
 import (
 	"context"
@@ -35,8 +35,8 @@ import (
 	errors2 "github.com/yandex-cloud/alb-ingress/controllers/errors"
 )
 
-// HTTPBackendGroupReconciler reconciles a HttpBackendGroup object
-type HTTPBackendGroupReconciler struct {
+// Reconciler reconciles a GrpcBackendGroup object
+type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	ReconcileHandler
@@ -44,22 +44,22 @@ type HTTPBackendGroupReconciler struct {
 	recorder record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=alb.yc.io,resources=httpbackendgroups,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=alb.yc.io,resources=httpbackendgroups/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=alb.yc.io,resources=httpbackendgroups/finalizers,verbs=update
+//+kubebuilder:rbac:groups=alb.yc.io,resources=grpcbackendgroups,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=alb.yc.io,resources=grpcbackendgroups/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=alb.yc.io,resources=grpcbackendgroups/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
-func (r *HTTPBackendGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	rLog := log.FromContext(ctx).WithValues("name", req.NamespacedName, "kind", "HttpBackendGroup")
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	rLog := log.FromContext(ctx).WithValues("name", req.NamespacedName, "kind", "GrpcBackendGroup")
 	rLog.Info("event detected")
 
-	var bg albv1alpha1.HttpBackendGroup
+	var bg albv1alpha1.GrpcBackendGroup
 	err := r.Get(ctx, req.NamespacedName, &bg)
 
-	// HttpBackendGroup removed from etcd, and we failed to retrieve it (e.g. forceful deletion)
+	// GrpcBackendGroup removed from etcd, and we failed to retrieve it (e.g. forceful deletion)
 	var statusError *k8serrors.StatusError
 	if errors.As(err, &statusError) && statusError.Status().Reason == metav1.StatusReasonNotFound {
 		rLog.Info("object not found, probably deleted")
@@ -74,7 +74,7 @@ func (r *HTTPBackendGroupReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{RequeueAfter: time.Second * errors2.FailureRequeueInterval}, err
 	}
 
-	// HttpBackendGroup is being gracefully deleted
+	// GrpcBackendGroup is being gracefully deleted
 	if !bg.DeletionTimestamp.IsZero() {
 		rLog.Info("object is being gracefully deleted")
 		err = r.HandleResourceDeleted(ctx, &bg)
@@ -89,9 +89,9 @@ func (r *HTTPBackendGroupReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *HTTPBackendGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.recorder = mgr.GetEventRecorderFor(k8s.ControllerName)
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&albv1alpha1.HttpBackendGroup{}).
+		For(&albv1alpha1.GrpcBackendGroup{}).
 		Complete(r)
 }

@@ -150,6 +150,14 @@ func parseHealthChecks(healthChecks string) ([]*apploadbalancer.HealthCheck, err
 		}
 	}
 
+	if grpcServiceName, ok := m["grpc-service-name"]; ok {
+		healthCheck.Healthcheck = &apploadbalancer.HealthCheck_Grpc{
+			Grpc: &apploadbalancer.HealthCheck_GrpcHealthCheck{
+				ServiceName: grpcServiceName,
+			},
+		}
+	}
+
 	if timeout, ok := m["timeout"]; ok {
 		duration, err := time.ParseDuration(timeout)
 		if err != nil {

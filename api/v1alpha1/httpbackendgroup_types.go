@@ -107,12 +107,13 @@ type HttpBackendGroupStatus struct { // nolint:revive
 	// Important: Run "make" to regenerate code after modifying this file
 }
 
-type HTTPHealthCheck struct {
+type HttpHealthCheck struct { //nolint:revive
 	Path string `json:"path"`
 }
 
 type HealthCheck struct {
-	HTTP *HTTPHealthCheck `json:"http"`
+	HTTP *HttpHealthCheck `json:"http"`
+	GRPC *GrpcHealthCheck `json:"grpc"`
 
 	Port *int64 `json:"port"`
 

@@ -5,18 +5,12 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
+	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"google.golang.org/protobuf/types/known/durationpb"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
 )
 
 const (
@@ -99,12 +93,12 @@ type BackendGroups struct {
 	CRBGNameOrIDMap        map[HostAndPath]string
 }
 
-type BackendGroupBuilder struct {
+type BackendGroupForSvcBuilder struct {
 	FolderID string
 	Names    *metadata.Names
 }
 
-func (b *BackendGroupBuilder) Build(svc *core.Service, ings []networking.Ingress, tgID string) (*apploadbalancer.BackendGroup, error) {
+func (b *BackendGroupForSvcBuilder) BuildForSvc(svc *core.Service, ings []networking.Ingress, tgID string) (*apploadbalancer.BackendGroup, error) {
 	if svc.Spec.Type != core.ServiceTypeNodePort {
 		return nil, fmt.Errorf("type of service %s/%s used by path is not NodePort", svc.Name, svc.Namespace)
 	}
@@ -119,10 +113,10 @@ func (b *BackendGroupBuilder) Build(svc *core.Service, ings []networking.Ingress
 		return nil, err
 	}
 
-	return b.build(svc, nodePorts, tgID, opts)
+	return b.buildForSvc(svc, nodePorts, tgID, opts)
 }
 
-func (b *BackendGroupBuilder) build(svc *core.Service, nodePorts []core.ServicePort, tgID string, opts BackendResolveOpts) (*apploadbalancer.BackendGroup, error) {
+func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []core.ServicePort, tgID string, opts BackendResolveOpts) (*apploadbalancer.BackendGroup, error) {
 	balancingConfig, err := parseBalancingConfigFromString(opts.BalancingMode)
 	if err != nil {
 		return nil, err
@@ -135,7 +129,10 @@ func (b *BackendGroupBuilder) build(svc *core.Service, nodePorts []core.ServiceP
 
 	var backend apploadbalancer.BackendGroup_Backend
 	if opts.BackendType == GRPC {
-		backends, err := b.buildGrpcBackends(svc, tgID, nodePorts, balancingConfig, tls)
+		backends, err := b.buildGrpcBackends(
+			svc, tgID, nodePorts, balancingConfig,
+			tls, opts.healthChecks,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +168,7 @@ func (b *BackendGroupBuilder) build(svc *core.Service, nodePorts []core.ServiceP
 	}, nil
 }
 
-func (b *BackendGroupBuilder) backendOpts(svc *core.Service, ings []networking.Ingress) (BackendResolveOpts, error) {
+func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networking.Ingress) (BackendResolveOpts, error) {
 	annotations := svc.GetAnnotations()
 	r := BackendOptsResolver{}
 
@@ -302,7 +299,7 @@ func collectPortsForService(svc *core.Service, ings []networking.Ingress) ([]cor
 	return result, nil
 }
 
-func (b *BackendGroupBuilder) buildHTTPBackends(
+func (b *BackendGroupForSvcBuilder) buildHTTPBackends(
 	svc *core.Service, tgID string,
 	ports []core.ServicePort,
 	balancingConfig *apploadbalancer.LoadBalancingConfig,
@@ -328,11 +325,12 @@ func (b *BackendGroupBuilder) buildHTTPBackends(
 	return backends, nil
 }
 
-func (b *BackendGroupBuilder) buildGrpcBackends(
+func (b *BackendGroupForSvcBuilder) buildGrpcBackends(
 	svc *core.Service, id string,
 	ports []core.ServicePort,
 	balancingConfig *apploadbalancer.LoadBalancingConfig,
 	tls *apploadbalancer.BackendTls,
+	healthChecks []*apploadbalancer.HealthCheck,
 ) ([]*apploadbalancer.GrpcBackend, error) {
 	backends := make([]*apploadbalancer.GrpcBackend, 0, len(ports))
 
@@ -343,7 +341,7 @@ func (b *BackendGroupBuilder) buildGrpcBackends(
 			BackendType: &apploadbalancer.GrpcBackend_TargetGroups{
 				TargetGroups: &apploadbalancer.TargetGroupsBackend{TargetGroupIds: []string{id}},
 			},
-			Healthchecks:        defaultHealthChecks,
+			Healthchecks:        healthChecks,
 			BackendWeight:       &wrappers.Int64Value{Value: 1},
 			LoadBalancingConfig: balancingConfig,
 			Tls:                 tls,
@@ -351,291 +349,6 @@ func (b *BackendGroupBuilder) buildGrpcBackends(
 	}
 
 	return backends, nil
-}
-
-type BackendGroupForCRDBuilder struct {
-	cli        client.Client
-	names      *metadata.Names
-	labels     *metadata.Labels
-	folderID   string
-	seenSvc    map[exposedNodePort]struct{}
-	seenBucket map[string]struct{}
-	tag        string // TODO: delete
-
-	targetGroupFinder TargetGroupFinder
-}
-
-func (b *BackendGroupForCRDBuilder) BuildBgFromCR(bgCR *v1alpha1.HttpBackendGroup) (*apploadbalancer.BackendGroup, error) {
-	var backends []*apploadbalancer.HttpBackend
-	for _, bcrd := range bgCR.Spec.Backends {
-		if bcrd.Service != nil {
-			bgs, err := b.buildBackendForService(bgCR.Namespace, bcrd)
-			if err != nil {
-				return nil, err
-			}
-			backends = append(backends, bgs...)
-			continue
-		}
-
-		if bcrd.StorageBucket != nil {
-			bg, err := b.buildBackendForBucket(bgCR.Namespace, bcrd)
-			if err != nil {
-				return nil, err
-			}
-
-			if bg != nil {
-				backends = append(backends, bg)
-			}
-			continue
-		}
-	}
-
-	backend := apploadbalancer.BackendGroup_Http{
-		Http: &apploadbalancer.HttpBackendGroup{
-			Backends:        backends,
-			SessionAffinity: parseSessionAffinity(bgCR.Spec.SessionAffinity),
-		},
-	}
-
-	return &apploadbalancer.BackendGroup{
-		Name:        b.names.BackendGroupForCR(bgCR.Namespace, bgCR.Name),
-		Description: fmt.Sprintf("backend group for CR %s/%s", bgCR.Namespace, bgCR.Name),
-		FolderId:    b.folderID,
-		Labels:      nil,
-		Backend:     &backend,
-		CreatedAt:   nil,
-	}, nil
-}
-
-func parseSessionAffinity(sa *v1alpha1.SessionAffinity) apploadbalancer.HttpBackendGroup_SessionAffinity {
-	if sa == nil {
-		return nil
-	}
-
-	if sa.Connection != nil {
-		return &apploadbalancer.HttpBackendGroup_Connection{
-			Connection: &apploadbalancer.ConnectionSessionAffinity{
-				SourceIp: sa.Connection.SourceIP,
-			},
-		}
-	}
-
-	if sa.Header != nil {
-		return &apploadbalancer.HttpBackendGroup_Header{
-			Header: &apploadbalancer.HeaderSessionAffinity{
-				HeaderName: sa.Header.HeaderName,
-			},
-		}
-	}
-
-	if sa.Cookie != nil {
-		cookie := &apploadbalancer.HttpBackendGroup_Cookie{
-			Cookie: &apploadbalancer.CookieSessionAffinity{
-				Name: sa.Cookie.Name,
-			},
-		}
-
-		if sa.Cookie.TTL != nil {
-			cookie.Cookie.Ttl = durationpb.New(sa.Cookie.TTL.Duration)
-		}
-
-		return cookie
-	}
-
-	return nil
-}
-
-// TODO: duplicated code with BackendGroupBuilder.AddBackend
-func (b *BackendGroupForCRDBuilder) buildBackendForService(ns string, crdBackend *v1alpha1.HttpBackend) ([]*apploadbalancer.HttpBackend, error) {
-	var svc core.Service
-	ctx := context.Background() // TODO: obtain as param
-	err := b.cli.Get(ctx, types.NamespacedName{
-		Namespace: ns,
-		Name:      crdBackend.Service.Name,
-	}, &svc)
-	if err != nil {
-		return nil, err
-	}
-	if svc.Spec.Type != core.ServiceTypeNodePort {
-		return nil, fmt.Errorf("type of service %s/%s used by CR HttpBackend %s is not NodePort",
-			svc.Namespace, svc.Name, crdBackend.Service.Name)
-	}
-
-	tgName := b.names.TargetGroup(k8s.NamespacedNameOf(&svc))
-	tg, err := b.targetGroupFinder.FindTargetGroup(ctx, tgName)
-	if err != nil {
-		return nil, err
-	}
-	if tg == nil {
-		return nil, ycerrors.YCResourceNotReadyError{ResourceType: "target group", Name: tgName}
-	}
-
-	ingressBackendPort := crdBackend.Service.Port
-	svcBackendPorts := nodePortsForServicePort(ingressBackendPort.Name, ingressBackendPort.Number, svc.Spec.Ports)
-	if len(svcBackendPorts) == 0 {
-		return nil, fmt.Errorf("service %s/%s doesn't expose its port %v",
-			svc.Namespace, svc.Name, ingressBackendPort)
-	}
-
-	balancingConfig, err := parseBalancingConfigFromCRDConfig(crdBackend.LoadBalancingConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	var ret []*apploadbalancer.HttpBackend
-	for _, port := range svcBackendPorts {
-		nodePort := int64(port.NodePort)
-		if _, ok := b.seenSvc[exposedNodePort{port: nodePort}]; ok {
-			// backend for this service and NodePort has already been added to this backend group
-			continue
-		}
-
-		backend := &apploadbalancer.HttpBackend{
-			Name:          b.names.Backend(b.tag, svc.Namespace, svc.Name, port.Port, port.NodePort),
-			BackendWeight: &wrappers.Int64Value{Value: crdBackend.Weight},
-			Port:          nodePort,
-			BackendType: &apploadbalancer.HttpBackend_TargetGroups{
-				TargetGroups: &apploadbalancer.TargetGroupsBackend{
-					TargetGroupIds: []string{
-						tg.Id,
-					},
-				},
-			},
-			Healthchecks:        buildHealthChecks(crdBackend, svcBackendPorts),
-			UseHttp2:            crdBackend.UseHTTP2,
-			LoadBalancingConfig: balancingConfig,
-		}
-		if crdBackend.TLS != nil {
-			backend.Tls = &apploadbalancer.BackendTls{
-				Sni: crdBackend.TLS.Sni,
-			}
-			if len(crdBackend.TLS.TrustedCa) > 0 {
-				backend.Tls.ValidationContext = &apploadbalancer.ValidationContext{
-					TrustedCa: &apploadbalancer.ValidationContext_TrustedCaBytes{
-						TrustedCaBytes: crdBackend.TLS.TrustedCa,
-					},
-				}
-			}
-		}
-
-		ret = append(ret, backend)
-		b.seenSvc[exposedNodePort{port: nodePort}] = struct{}{}
-	}
-	return ret, nil
-}
-
-func convertDuration(s *metav1.Duration) *durationpb.Duration {
-	if s == nil {
-		return nil
-	}
-	return durationpb.New(s.Duration)
-}
-
-func buildHealthChecks(backend *v1alpha1.HttpBackend, svcPorts []core.ServicePort) []*apploadbalancer.HealthCheck {
-	if len(backend.HealthChecks) == 0 {
-		return defaultHealthChecks
-	}
-
-	res := make([]*apploadbalancer.HealthCheck, 0, len(backend.HealthChecks))
-	for _, check := range backend.HealthChecks {
-		var transportSettings apploadbalancer.HealthCheck_TransportSettings
-		if backend.TLS != nil {
-			transportSettings = &apploadbalancer.HealthCheck_Tls{
-				Tls: &apploadbalancer.SecureTransportSettings{
-					Sni: backend.TLS.Sni,
-					ValidationContext: &apploadbalancer.ValidationContext{
-						TrustedCa: &apploadbalancer.ValidationContext_TrustedCaBytes{
-							TrustedCaBytes: backend.TLS.TrustedCa,
-						},
-					},
-				},
-			}
-		} else {
-			transportSettings = &apploadbalancer.HealthCheck_Plaintext{
-				Plaintext: &apploadbalancer.PlaintextTransportSettings{},
-			}
-		}
-
-		if check.Port != nil {
-			res = append(res, &apploadbalancer.HealthCheck{
-				Timeout:         convertDuration(check.Timeout),
-				Interval:        convertDuration(check.Interval),
-				HealthcheckPort: *check.Port,
-				Healthcheck: &apploadbalancer.HealthCheck_Http{
-					Http: &apploadbalancer.HealthCheck_HttpHealthCheck{
-						Path: check.HTTP.Path,
-					},
-				},
-				HealthyThreshold:   check.HealthyThreshold,
-				UnhealthyThreshold: check.UnhealthyThreshold,
-				TransportSettings:  transportSettings,
-			})
-		} else {
-			for _, port := range svcPorts {
-				res = append(res, &apploadbalancer.HealthCheck{
-					Timeout:         convertDuration(check.Timeout),
-					Interval:        convertDuration(check.Interval),
-					HealthcheckPort: int64(port.NodePort),
-					Healthcheck: &apploadbalancer.HealthCheck_Http{
-						Http: &apploadbalancer.HealthCheck_HttpHealthCheck{
-							Path: check.HTTP.Path,
-						},
-					},
-					HealthyThreshold:   check.HealthyThreshold,
-					UnhealthyThreshold: check.UnhealthyThreshold,
-					TransportSettings:  transportSettings,
-				})
-			}
-		}
-	}
-
-	return res
-}
-
-func parseBalancingConfigFromString(mode string) (*apploadbalancer.LoadBalancingConfig, error) {
-	if mode == "" {
-		return nil, nil
-	}
-	return parseBalancingConfig(mode)
-}
-
-func parseBalancingConfigFromCRDConfig(config *v1alpha1.LoadBalancingConfig) (*apploadbalancer.LoadBalancingConfig, error) {
-	if config == nil {
-		return nil, nil
-	}
-	return parseBalancingConfig(config.BalancerMode)
-}
-
-func parseBalancingConfig(mode string) (*apploadbalancer.LoadBalancingConfig, error) {
-	balancingMode, ok := apploadbalancer.LoadBalancingMode_value[mode]
-	if !ok {
-		return nil, fmt.Errorf("unknown balancing mode: %s", mode)
-	}
-
-	return &apploadbalancer.LoadBalancingConfig{
-		Mode: apploadbalancer.LoadBalancingMode(balancingMode),
-	}, nil
-}
-
-func (b *BackendGroupForCRDBuilder) buildBackendForBucket(namespace string, crdBackend *v1alpha1.HttpBackend) (*apploadbalancer.HttpBackend, error) {
-	if _, ok := b.seenBucket[crdBackend.StorageBucket.Name]; ok {
-		return nil, nil
-	}
-	b.seenBucket[crdBackend.StorageBucket.Name] = struct{}{}
-
-	balancingConfig, err := parseBalancingConfigFromCRDConfig(crdBackend.LoadBalancingConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return &apploadbalancer.HttpBackend{
-		Name:          b.names.Backend(b.tag, namespace, crdBackend.StorageBucket.Name, 0, 0), // TODO: fix naming
-		BackendWeight: &wrappers.Int64Value{Value: crdBackend.Weight},
-		BackendType: &apploadbalancer.HttpBackend_StorageBucket{
-			StorageBucket: &apploadbalancer.StorageBucketBackend{Bucket: crdBackend.StorageBucket.Name},
-		},
-		LoadBalancingConfig: balancingConfig,
-	}, nil
 }
 
 func parseGRPCSessionAffinityFromOpts(o BackendResolveOpts) (apploadbalancer.GrpcBackendGroup_SessionAffinity, error) {

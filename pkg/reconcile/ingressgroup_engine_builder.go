@@ -291,7 +291,8 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			return tlsVHBuilder.AddRedirect(hp, redirect)
 		}
 
-		if backend.Resource != nil && backend.Resource.Kind == "HttpBackendGroup" {
+		if backend.Resource != nil &&
+			(backend.Resource.Kind == "HttpBackendGroup" || backend.Resource.Kind == "GrpcBackendGroup") {
 			if !isTlS {
 				return httpVHBuilder.AddRouteCR(hp, backend.Resource.Name)
 			}

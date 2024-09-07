@@ -19,35 +19,6 @@ type BackendGroupRepo interface {
 	ListBackendGroupOperations(ctx context.Context, group *apploadbalancer.BackendGroup) ([]*operation.Operation, error)
 }
 
-type ReconciledBackendGroups struct {
-	Active  []*apploadbalancer.BackendGroup
-	Garbage []*apploadbalancer.BackendGroup
-}
-
-type BackendGroupsReconcileEngine interface {
-	ReconcileBackendGroup(context.Context, *apploadbalancer.BackendGroup) (*ReconciledBackendGroups, error)
-}
-
-type BackendGroupDeployManager struct {
-	Repo BackendGroupRepo
-}
-
-func NewBackendGroupDeployManager(repo BackendGroupRepo) *BackendGroupDeployManager {
-	return &BackendGroupDeployManager{Repo: repo}
-}
-
-func (m BackendGroupDeployManager) Deploy(ctx context.Context, name string, engine BackendGroupsReconcileEngine) (*apploadbalancer.BackendGroup, error) {
-	bg, err := m.Repo.FindBackendGroup(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	bgs, err := engine.ReconcileBackendGroup(ctx, bg)
-	if err != nil {
-		return nil, err
-	}
-	return bgs.Active[0], nil
-}
-
 type BackendGroupDeployer struct {
 	repo BackendGroupRepo
 

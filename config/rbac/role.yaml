@@ -9,6 +9,32 @@ rules:
 - apiGroups:
   - alb.yc.io
   resources:
+  - grpcbackendgroups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - alb.yc.io
+  resources:
+  - grpcbackendgroups/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - alb.yc.io
+  resources:
+  - grpcbackendgroups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - alb.yc.io
+  resources:
   - httpbackendgroups
   verbs:
   - create

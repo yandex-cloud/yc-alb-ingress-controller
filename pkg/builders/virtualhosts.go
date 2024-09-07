@@ -206,6 +206,10 @@ func (b *VirtualHostBuilder) SetOpts(routeOpts RouteResolveOpts, vhOpts VirtualH
 
 			return createRoute(name, bgName, match)
 		}
+
+		b.createRouteCR = func(name string, match *apploadbalancer.StringMatch, bgName string) (*apploadbalancer.Route, error) {
+			return createRoute(name, b.names.BackendGroupForCR(ingNamespace, bgName), match)
+		}
 	} else {
 		createRoute := func(name, bgName string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
 			bg, err := b.backendGroupFinder.FindBackendGroup(context.TODO(), bgName)

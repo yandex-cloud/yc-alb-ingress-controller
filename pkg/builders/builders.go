@@ -39,20 +39,6 @@ func NewFactory(folderID string, region string, names *metadata.Names, labels *m
 	}
 }
 
-func (f *Factory) BackendGroupForCRDBuilder() *BackendGroupForCRDBuilder {
-	return &BackendGroupForCRDBuilder{
-		tag:        "",
-		folderID:   f.folderID,
-		names:      f.names,
-		labels:     f.labels,
-		cli:        f.cli,
-		seenSvc:    make(map[exposedNodePort]struct{}),
-		seenBucket: make(map[string]struct{}),
-
-		targetGroupFinder: f.targetGroupFinder,
-	}
-}
-
 func (f *Factory) RestartVirtualHostIDGenerator() {
 	routeIDs, vhIDs := DummyIDGenerator(-1), DummyIDGenerator(-1)
 	f.routeIDs = &routeIDs

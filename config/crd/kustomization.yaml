@@ -2,6 +2,7 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
+- bases/alb.yc.io_grpcbackendgroups.yaml
 - bases/alb.yc.io_httpbackendgroups.yaml
 - bases/alb.yc.io_ingressgroupstatuses.yaml
 - bases/alb.yc.io_ingressgroupsettings.yaml

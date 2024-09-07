@@ -34,7 +34,7 @@ type Reconciler struct {
 	TargetGroupBuilder  *ingressreconcile.TargetGroupBuilder
 	TargetGroupDeployer *deploy.TargetGroupDeployer
 
-	BackendGroupBuilder  *builders.BackendGroupBuilder
+	BackendGroupBuilder  *builders.BackendGroupForSvcBuilder
 	BackendGroupDeployer *deploy.BackendGroupDeployer
 
 	FinalizerManager   *k8s.FinalizerManager
@@ -84,7 +84,7 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 			return obj, err
 		}
 
-		bg, err := r.BackendGroupBuilder.Build(svc.ToReconcile, ings, tg.Id)
+		bg, err := r.BackendGroupBuilder.BuildForSvc(svc.ToReconcile, ings, tg.Id)
 		if err != nil {
 			return obj, err
 		}

@@ -12,4 +12,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: controller
+  newName: cr.yandex/crpau97gqtl6agjd3mq8/yc-alb-ingress-controller
+  newTag: d32fed8
+patches:
+- patch: '[{"op": "add", "path": "/spec/template/spec/containers/0/args/0", "value":
+    "--folder-id=b1gu6misphmisk43v5l7"},{"op": "add", "path": "/spec/template/spec/containers/0/args/1",
+    "value": "--endpoint=api.cloud.yandex.net:443"}]'
+  target:
+    kind: Deployment
+    name: controller-manager
+    namespace: system

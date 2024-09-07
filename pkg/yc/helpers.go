@@ -58,7 +58,7 @@ func securityGroupsNeedUpdate(ids1 []string, ids2 []string) bool {
 	return !idSet1.Equal(idSet2)
 }
 
-func listenersNeedUpdate(listeners []*apploadbalancer.Listener, specs []*apploadbalancer.Listener) bool {
+func listenersNeedUpdate(listeners, specs []*apploadbalancer.Listener) bool {
 	if len(listeners) != len(specs) {
 		return true
 	}
@@ -120,7 +120,7 @@ func listenerEndpointsNeedUpdate(act, exp []*apploadbalancer.Endpoint) bool {
 	return false
 }
 
-func listenerNeedsUpdate(listener *apploadbalancer.Listener, spec *apploadbalancer.Listener) bool {
+func listenerNeedsUpdate(listener, spec *apploadbalancer.Listener) bool {
 	if listenerEndpointsNeedUpdate(listener.Endpoints, spec.Endpoints) {
 		return true
 	}
@@ -138,7 +138,7 @@ func listenerNeedsUpdate(listener *apploadbalancer.Listener, spec *apploadbalanc
 	}
 }
 
-func locationsNeedUpdate(locations []*apploadbalancer.Location, locations2 []*apploadbalancer.Location) bool {
+func locationsNeedUpdate(locations, locations2 []*apploadbalancer.Location) bool {
 	// for simplicity assume that balancers are valid and therefore slices have no repetitions
 	if len(locations) != len(locations2) {
 		return true
@@ -160,7 +160,7 @@ func locationsNeedUpdate(locations []*apploadbalancer.Location, locations2 []*ap
 	return false
 }
 
-func (*UpdatePredicates) RouterNeedsUpdate(r1 *apploadbalancer.HttpRouter, r2 *apploadbalancer.HttpRouter) bool {
+func (*UpdatePredicates) RouterNeedsUpdate(r1, r2 *apploadbalancer.HttpRouter) bool {
 	if len(r1.VirtualHosts) != len(r2.VirtualHosts) {
 		return true
 	}

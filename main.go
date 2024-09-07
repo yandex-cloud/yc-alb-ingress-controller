@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/yandex-cloud/alb-ingress/controllers/grpcbackendgroup"
+
 	ycsdk "github.com/yandex-cloud/go-sdk"
 	"github.com/yandex-cloud/go-sdk/iamkey"
 	"go.uber.org/zap/zapcore"
@@ -41,8 +43,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	albv1alpha1 "github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	"github.com/yandex-cloud/alb-ingress/controllers"
+	"github.com/yandex-cloud/alb-ingress/controllers/httpbackendgroup"
 	"github.com/yandex-cloud/alb-ingress/controllers/ingress"
+	"github.com/yandex-cloud/alb-ingress/controllers/secret"
 	"github.com/yandex-cloud/alb-ingress/controllers/service"
 	"github.com/yandex-cloud/alb-ingress/pkg/builders"
 	"github.com/yandex-cloud/alb-ingress/pkg/deploy"
@@ -176,7 +179,7 @@ func main() {
 		TargetGroupBuilder:  reconcile.NewTargetGroupBuilder(folderID, cli, names, labels, repo.FindInstanceByID, useEndpointSlices),
 		TargetGroupDeployer: deploy.NewServiceDeployer(repo),
 
-		BackendGroupBuilder:  &builders.BackendGroupBuilder{FolderID: folderID, Names: names},
+		BackendGroupBuilder:  &builders.BackendGroupForSvcBuilder{FolderID: folderID, Names: names},
 		BackendGroupDeployer: deploy.NewBackendGroupDeployer(repo),
 
 		FinalizerManager:   &k8s.FinalizerManager{Client: cli},
@@ -218,32 +221,54 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (controllers.NewSecretController(cli, certRepo, names)).SetupWithManager(mgr, secretEventChan); err != nil {
+	if err = (secret.NewController(cli, certRepo, names)).SetupWithManager(mgr, secretEventChan); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Secrets")
 		os.Exit(1)
 	}
 
-	newBGEngineFn := func(d *builders.Data) *reconcile.BackendGroupEngine {
-		return &reconcile.BackendGroupEngine{
-			Data:       d,
-			Repo:       repo,
-			Predicates: &yc.UpdatePredicates{},
-			Names:      names,
-		}
-	}
-	bgEngine := &reconcile.BackendGroupReconcileHandler{
-		Builder:          reconcile.NewBackendGroupEngineBuilder(factory, newBGEngineFn),
-		Deployer:         deploy.NewBackendGroupDeployManager(repo),
+	httpBGRecHandler := &reconcile.HttpBackendGroupReconcileHandler{
 		Repo:             repo,
 		Predicates:       &yc.UpdatePredicates{},
 		FinalizerManager: &k8s.FinalizerManager{Client: cli},
 
+		Builder: &builders.HttpBackendGroupForCrdBuilder{
+			FolderID: folderID,
+			Names:    names,
+			Cli:      cli,
+			Repo:     repo,
+		},
+		Deployer: deploy.NewBackendGroupDeployer(repo),
+
 		Names: names,
 	}
-	if err = (&controllers.HTTPBackendGroupReconciler{
+	if err = (&httpbackendgroup.Reconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
-		ReconcileHandler: bgEngine,
+		ReconcileHandler: httpBGRecHandler,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HttpBackendGroup")
+		os.Exit(1)
+	}
+
+	grpcBGRecHandler := &reconcile.GrpcBackendGroupReconcileHandler{
+		Repo:             repo,
+		Predicates:       &yc.UpdatePredicates{},
+		FinalizerManager: &k8s.FinalizerManager{Client: cli},
+
+		Builder: &builders.GrpcBackendGroupForCrdBuilder{
+			FolderID: folderID,
+			Names:    names,
+			Cli:      cli,
+			Repo:     repo,
+		},
+		Deployer: deploy.NewBackendGroupDeployer(repo),
+
+		Names: names,
+	}
+	if err = (&grpcbackendgroup.Reconciler{
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		ReconcileHandler: grpcBGRecHandler,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HttpBackendGroup")
 		os.Exit(1)

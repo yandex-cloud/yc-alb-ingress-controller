@@ -23,8 +23,6 @@ possible design improvement options:
 - deployable resource with ID setting callback
 */
 
-func (d *Data) Lol() {}
-
 func (d *Data) InjectTLSRouterIDIntoSNIMatches(id string) {
 	if d != nil {
 		for _, sniMatch := range d.SNIMatches {

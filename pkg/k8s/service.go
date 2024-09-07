@@ -90,12 +90,46 @@ func IsServiceManaged(ctx context.Context, cli client.Client, svc v1.Service) (b
 	if err != nil {
 		return false, err
 	}
+	if managedBG {
+		return true, nil
+	}
+
+	managedBG, err = isServiceReferencedByGRPCBackendGroup(ctx, cli, svc)
+	if err != nil {
+		return false, err
+	}
 
 	return managedBG, nil
 }
 
 func isServiceReferencedByHTTPBackendGroup(ctx context.Context, cli client.Client, svc v1.Service) (bool, error) {
 	var bgs v1alpha1.HttpBackendGroupList
+	err := cli.List(ctx, &bgs)
+	if err != nil {
+		return false, err
+	}
+
+	for _, bg := range bgs.Items {
+		if bg.Namespace != svc.Namespace {
+			continue
+		}
+
+		for _, be := range bg.Spec.Backends {
+			if be.Service == nil {
+				continue
+			}
+
+			if be.Service.Name == svc.Name {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func isServiceReferencedByGRPCBackendGroup(ctx context.Context, cli client.Client, svc v1.Service) (bool, error) {
+	var bgs v1alpha1.GrpcBackendGroupList
 	err := cli.List(ctx, &bgs)
 	if err != nil {
 		return false, err
