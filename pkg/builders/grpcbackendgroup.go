@@ -119,7 +119,7 @@ func (b *GrpcBackendGroupForCrdBuilder) buildGrpcBackendsForService( //nolint:re
 					},
 				},
 			},
-			Healthchecks:        buildGrpcHealthChecks(bgCrd, svcBackendPorts),
+			Healthchecks:        b.buildGrpcHealthChecks(bgCrd, svcBackendPorts),
 			LoadBalancingConfig: balancingConfig,
 		}
 		if bgCrd.TLS != nil {
@@ -141,7 +141,7 @@ func (b *GrpcBackendGroupForCrdBuilder) buildGrpcBackendsForService( //nolint:re
 	return ret, nil
 }
 
-func buildGrpcHealthChecks(backend *v1alpha1.GrpcBackend, svcPorts []core.ServicePort) []*apploadbalancer.HealthCheck { //nolint:revive
+func (b *GrpcBackendGroupForCrdBuilder) buildGrpcHealthChecks(backend *v1alpha1.GrpcBackend, svcPorts []core.ServicePort) []*apploadbalancer.HealthCheck { //nolint:revive
 	if len(backend.HealthChecks) == 0 {
 		return defaultHealthChecks
 	}

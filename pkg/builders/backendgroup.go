@@ -47,6 +47,14 @@ func healthCheckTemplate() *apploadbalancer.HealthCheck {
 
 var defaultHealthChecks = []*apploadbalancer.HealthCheck{healthCheckTemplate()}
 
+func SetupDefaultHealthChecks(enable bool) {
+	if enable {
+		defaultHealthChecks = []*apploadbalancer.HealthCheck{healthCheckTemplate()}
+	} else {
+		defaultHealthChecks = []*apploadbalancer.HealthCheck{}
+	}
+}
+
 type HostAndPath struct {
 	Host, Path, PathType string
 }
@@ -229,10 +237,15 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 		}
 	}
 
-	return r.Resolve(
+	opts, err := r.Resolve(
 		protocol, balancingMode, transportSecurity,
 		saHeader, saCookie, saConnection, healthChecks,
 	)
+	if err != nil {
+		return BackendResolveOpts{}, err
+	}
+
+	return opts, nil
 }
 
 func parseSvcAnnotationFromIngs(ings []networking.Ingress, annotation string) (string, error) {

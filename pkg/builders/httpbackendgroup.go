@@ -124,7 +124,6 @@ func (b *HttpBackendGroupForCrdBuilder) buildHttpBackendsForService( //nolint:re
 		}
 
 		backend := &apploadbalancer.HttpBackend{
-			// TODO: ask about tag
 			Name:          b.Names.Backend("", svc.Namespace, svc.Name, port.Port, port.NodePort),
 			BackendWeight: &wrappers.Int64Value{Value: bgCrd.Weight},
 			Port:          nodePort,
@@ -135,7 +134,7 @@ func (b *HttpBackendGroupForCrdBuilder) buildHttpBackendsForService( //nolint:re
 					},
 				},
 			},
-			Healthchecks:        buildHttpHealthChecks(bgCrd, svcBackendPorts),
+			Healthchecks:        b.buildHttpHealthChecks(bgCrd, svcBackendPorts),
 			UseHttp2:            bgCrd.UseHTTP2,
 			LoadBalancingConfig: balancingConfig,
 		}
@@ -181,7 +180,7 @@ func (b *HttpBackendGroupForCrdBuilder) buildHttpBackendForBucket( //nolint:revi
 	}, nil
 }
 
-func buildHttpHealthChecks(backend *v1alpha1.HttpBackend, svcPorts []core.ServicePort) []*apploadbalancer.HealthCheck { //nolint:revive
+func (b *HttpBackendGroupForCrdBuilder) buildHttpHealthChecks(backend *v1alpha1.HttpBackend, svcPorts []core.ServicePort) []*apploadbalancer.HealthCheck { //nolint:revive
 	if len(backend.HealthChecks) == 0 {
 		return defaultHealthChecks
 	}

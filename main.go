@@ -85,13 +85,14 @@ func main() {
 			"Does not affect behavior, but will be used by default when endpoints api is deprecated")
 
 	var (
-		folderID         string
-		certsFolderID    string
-		clusterID        string
-		region           string
-		clusterLabelName string
-		keyFile          string
-		endpoint         string
+		folderID                  string
+		certsFolderID             string
+		clusterID                 string
+		region                    string
+		clusterLabelName          string
+		keyFile                   string
+		endpoint                  string
+		enableDefaultHealthChecks bool
 	)
 	flag.StringVar(&folderID, "folder-id", "", "alb folder ID")
 	flag.StringVar(&certsFolderID, "certs-folder-id", "", "certificates folder ID, by default equals to value of folder-id")
@@ -100,6 +101,7 @@ func main() {
 	flag.StringVar(&clusterLabelName, "cluster-label-name", "cluster_ref_label", "common label for cloud resources for ingress controller")
 	flag.StringVar(&keyFile, "keyfile", "", "service account key json file")
 	flag.StringVar(&endpoint, "endpoint", "", "cloud environment endpoint (defaults to prod endpoint)")
+	flag.BoolVar(&enableDefaultHealthChecks, "enable-default-health-checks", true, "enables default healthchecks in ALB configuration")
 
 	opts := zap.Options{
 		Development:     true,
@@ -174,6 +176,7 @@ func main() {
 
 	cli := mgr.GetClient()
 	repo := yc.NewRepository(sdk, names, folderID)
+	builders.SetupDefaultHealthChecks(enableDefaultHealthChecks)
 
 	if err = (&service.Reconciler{
 		TargetGroupBuilder:  reconcile.NewTargetGroupBuilder(folderID, cli, names, labels, repo.FindInstanceByID, useEndpointSlices),
