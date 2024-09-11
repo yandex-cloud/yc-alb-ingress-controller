@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/yandex-cloud/alb-ingress/controllers/grpcbackendgroup"
 
@@ -137,6 +138,15 @@ func main() {
 
 	if endpoint == "" {
 		endpoint = os.Getenv("YC_ENDPOINT")
+	}
+
+	if envEnable := os.Getenv("YC_ALB_ENABLE_DEFAULT_HEALTHCHECKS"); envEnable != "" {
+		var err error
+		enableDefaultHealthChecks, err = strconv.ParseBool(envEnable)
+		if err != nil {
+			setupLog.Error(err, "unable to parse YC_ALB_ENABLE_DEFAULT_HEALTHCHECKS")
+			os.Exit(1)
+		}
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
