@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -33,14 +34,14 @@ func (l *DefaultServiceLoader) Load(ctx context.Context, name types.NamespacedNa
 	}
 
 	if err != nil {
-		return ServiceToReconcile{}, err
+		return ServiceToReconcile{}, fmt.Errorf("failed to get service: %w", err)
 	}
 
 	deleted := svc.DeletionTimestamp != nil
 	hasfinalizer := hasFinalizer(&svc, Finalizer)
 	managed, err := IsServiceManaged(ctx, l.Client, svc)
 	if err != nil {
-		return ServiceToReconcile{}, err
+		return ServiceToReconcile{}, fmt.Errorf("failed to check if service is managed: %w", err)
 	}
 
 	if !managed && !hasfinalizer {
@@ -80,7 +81,7 @@ func IsServiceReferencedByIngress(svc v1.Service, ing networking.Ingress) bool {
 func IsServiceManaged(ctx context.Context, cli client.Client, svc v1.Service) (bool, error) {
 	managedIng, err := isServiceReferencedByIngress(ctx, cli, svc)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to check if service is referenced by ingress: %w", err)
 	}
 	if managedIng {
 		return true, nil
@@ -88,7 +89,7 @@ func IsServiceManaged(ctx context.Context, cli client.Client, svc v1.Service) (b
 
 	managedBG, err := isServiceReferencedByHTTPBackendGroup(ctx, cli, svc)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to check if service is referenced by http backend group: %w", err)
 	}
 	if managedBG {
 		return true, nil
@@ -96,7 +97,7 @@ func IsServiceManaged(ctx context.Context, cli client.Client, svc v1.Service) (b
 
 	managedBG, err = isServiceReferencedByGRPCBackendGroup(ctx, cli, svc)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to check if service is referenced by grpc backend group: %w", err)
 	}
 
 	return managedBG, nil
@@ -106,7 +107,7 @@ func isServiceReferencedByHTTPBackendGroup(ctx context.Context, cli client.Clien
 	var bgs v1alpha1.HttpBackendGroupList
 	err := cli.List(ctx, &bgs)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to list http backend groups: %w", err)
 	}
 
 	for _, bg := range bgs.Items {
@@ -132,7 +133,7 @@ func isServiceReferencedByGRPCBackendGroup(ctx context.Context, cli client.Clien
 	var bgs v1alpha1.GrpcBackendGroupList
 	err := cli.List(ctx, &bgs)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to list grpc backend groups: %w", err)
 	}
 
 	for _, bg := range bgs.Items {
@@ -158,13 +159,13 @@ func isServiceReferencedByIngress(ctx context.Context, cli client.Client, svc v1
 	var ingList networking.IngressList
 	err := cli.List(ctx, &ingList)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to list ingresses: %w", err)
 	}
 
 	var ingClassList networking.IngressClassList
 	err = cli.List(ctx, &ingClassList)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to list ingress classes: %w", err)
 	}
 
 	for _, ing := range ingList.Items {

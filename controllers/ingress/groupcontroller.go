@@ -106,45 +106,48 @@ func (r *GroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 func (r *GroupReconciler) doReconcile(ctx context.Context, req ctrl.Request) (*k8s.IngressGroup, error) {
 	g, err := r.Loader.Load(ctx, req.NamespacedName)
-	if err != nil || g == nil {
-		return g, err
+	if g == nil {
+		if err != nil {
+			return g, fmt.Errorf("failed to load group: %w", err)
+		}
+		return g, nil
 	}
 	err = r.updateGroupFinalizer(ctx, g)
 	if err != nil {
-		return g, err
+		return g, fmt.Errorf("failed to update group finalizer: %w", err)
 	}
 
 	r.SecretsManager.ManageGroup(ctx, g)
 
 	settings, err := r.SettingsLoader.Load(ctx, g)
 	if err != nil {
-		return g, err
+		return g, fmt.Errorf("failed to load group settings: %w", err)
 	}
 
 	reconcileEngine, err := r.Builder.Build(ctx, g, settings)
 	if err != nil {
-		return g, err
+		return g, fmt.Errorf("failed to build group reconcile engine: %w", err)
 	}
 	balancerResources, err := r.Deployer.Deploy(ctx, g.Tag, reconcileEngine)
 	if err != nil {
-		return g, err
+		return g, fmt.Errorf("failed to deploy group: %w", err)
 	}
 
 	err = r.setGroupStatus(ctx, g, balancerResources)
 	if err != nil {
-		return g, err
+		return g, fmt.Errorf("failed to set group status: %w", err)
 	}
 
 	err = r.deleteOldBackendGroups(ctx, g.Tag)
 	if err != nil {
-		return g, err
+		return g, fmt.Errorf("failed to delete old backend groups: %w", err)
 	}
 
 	err = r.removeGroupFinalizer(ctx, g)
 	if err != nil {
-		return g, err
+		return g, fmt.Errorf("failed to remove group finalizer: %w", err)
 	}
-	return g, err
+	return g, nil
 }
 
 // SetupWithManager sets up the controller with the manager.
@@ -158,7 +161,7 @@ func (r *GroupReconciler) SetupWithManager(
 		Reconciler:              r,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create controller: %w", err)
 	}
 
 	eventRecorder := mgr.GetEventRecorderFor("ingress-group")
@@ -166,17 +169,17 @@ func (r *GroupReconciler) SetupWithManager(
 
 	err = c.Watch(&source.Kind{Type: &v1.Service{}}, eventhandlers.NewServiceEventHandler(mgr.GetLogger(), mgr.GetClient(), eventRecorder))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to watch services: %w", err)
 	}
 
 	err = c.Watch(&source.Kind{Type: &v1alpha1.IngressGroupSettings{}}, eventhandlers.NewSettingsEventHandler(mgr.GetLogger(), mgr.GetClient()))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to watch ingressgroupsettings: %w", err)
 	}
 
 	err = r.setupIngressWatches(c)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to watch ingresses: %w", err)
 	}
 
 	r.SecretsManager = k8s.NewSecretManager(clientSet, secretEventChan)
@@ -192,7 +195,7 @@ func (r *GroupReconciler) deleteOldBackendGroups(ctx context.Context, tag string
 func (r *GroupReconciler) updateGroupFinalizer(ctx context.Context, g *k8s.IngressGroup) error {
 	for _, item := range g.Items {
 		if err := r.FinalizerManager.UpdateFinalizer(ctx, &item, k8s.Finalizer); err != nil {
-			return err
+			return fmt.Errorf("failed to update finalizer: %w", err)
 		}
 	}
 	return nil
@@ -201,7 +204,7 @@ func (r *GroupReconciler) updateGroupFinalizer(ctx context.Context, g *k8s.Ingre
 func (r *GroupReconciler) removeGroupFinalizer(ctx context.Context, g *k8s.IngressGroup) error {
 	for _, item := range g.Deleted {
 		if err := r.FinalizerManager.RemoveFinalizer(ctx, &item, k8s.Finalizer); err != nil {
-			return err
+			return fmt.Errorf("failed to remove finalizer: %w", err)
 		}
 	}
 	return nil
@@ -211,7 +214,7 @@ func (r *GroupReconciler) setGroupStatus(ctx context.Context, g *k8s.IngressGrou
 	albStatus := r.StatusResolver.Resolve(resources.Balancer)
 	for _, item := range g.Items {
 		if err := r.StatusUpdater.SetIngressStatus(&item, albStatus); err != nil {
-			return err
+			return fmt.Errorf("failed to set ingress status: %w", err)
 		}
 	}
 
@@ -221,7 +224,7 @@ func (r *GroupReconciler) setGroupStatus(ctx context.Context, g *k8s.IngressGrou
 
 	groupStatus, err := r.GroupStatusManager.LoadOrCreateStatus(ctx, g.Tag)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load or create group status: %w", err)
 	}
 
 	var ids k8s.ResourcesIDs
@@ -237,7 +240,7 @@ func (r *GroupReconciler) setGroupStatus(ctx context.Context, g *k8s.IngressGrou
 
 	err = r.GroupStatusManager.SetBalancerResourcesIDs(ctx, groupStatus, ids)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set balancer resources ids: %w", err)
 	}
 
 	return nil
@@ -301,7 +304,7 @@ func (r *GroupReconciler) setupIngressWatches(c controller.Controller) error {
 	}
 	err := c.Watch(&source.Kind{Type: &networking.Ingress{}}, handler.EnqueueRequestsFromMapFunc(mapFn), predicate.NewPredicateFuncs(filterFn))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to watch ingresses: %w", err)
 	}
 	return nil
 }

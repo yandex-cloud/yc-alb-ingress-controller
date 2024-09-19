@@ -32,7 +32,7 @@ func NewBackendGroupDeployer(repo BackendGroupRepo) *BackendGroupDeployer {
 func (d *BackendGroupDeployer) Deploy(ctx context.Context, expected *apploadbalancer.BackendGroup) (*apploadbalancer.BackendGroup, error) {
 	actual, err := d.repo.FindBackendGroup(ctx, expected.Name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find backend group: %w", err)
 	}
 
 	// create if needed
@@ -74,7 +74,7 @@ func (d *BackendGroupDeployer) Deploy(ctx context.Context, expected *apploadbala
 func (d *BackendGroupDeployer) Undeploy(ctx context.Context, name string) (*apploadbalancer.BackendGroup, error) {
 	tg, err := d.repo.FindBackendGroup(ctx, name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find backend group: %w", err)
 	}
 
 	if tg == nil {

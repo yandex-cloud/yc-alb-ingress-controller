@@ -39,7 +39,7 @@ func (b *GrpcBackendGroupForCrdBuilder) BuildForCrd(
 		if bcrd.Service != nil {
 			bgs, err := b.buildGrpcBackendsForService(ctx, bgCR.Namespace, seenSvc, bcrd)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to build grpc backends for service: %w", err)
 			}
 			backends = append(backends, bgs...)
 			continue
@@ -72,7 +72,7 @@ func (b *GrpcBackendGroupForCrdBuilder) buildGrpcBackendsForService( //nolint:re
 		Name:      bgCrd.Service.Name,
 	}, &svc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get service %s/%s: %w", ns, bgCrd.Service.Name, err)
 	}
 	if svc.Spec.Type != core.ServiceTypeNodePort {
 		return nil, fmt.Errorf("type of service %s/%s used by CR GrpcBackend %s is not NodePort",
@@ -82,7 +82,7 @@ func (b *GrpcBackendGroupForCrdBuilder) buildGrpcBackendsForService( //nolint:re
 	tgName := b.Names.TargetGroup(k8s.NamespacedNameOf(&svc))
 	tg, err := b.Repo.FindTargetGroup(ctx, tgName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get target group %s: %w", tgName, err)
 	}
 	if tg == nil {
 		return nil, ycerrors.YCResourceNotReadyError{ResourceType: "target group", Name: tgName}
@@ -97,7 +97,7 @@ func (b *GrpcBackendGroupForCrdBuilder) buildGrpcBackendsForService( //nolint:re
 
 	balancingConfig, err := parseBalancingConfigFromCRDConfig(bgCrd.LoadBalancingConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse load balancing config: %w", err)
 	}
 
 	var ret []*apploadbalancer.GrpcBackend

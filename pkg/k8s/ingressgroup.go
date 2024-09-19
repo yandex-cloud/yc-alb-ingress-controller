@@ -34,7 +34,7 @@ func (l *Loader) Load(ctx context.Context, nsName types.NamespacedName) (*Ingres
 	var list v1.IngressList
 	err := l.cli.List(ctx, &list)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list ingresses: %w", err)
 	}
 	if len(list.Items) == 0 {
 		return nil, nil
@@ -51,7 +51,7 @@ func (l *Loader) Load(ctx context.Context, nsName types.NamespacedName) (*Ingres
 	var classList v1.IngressClassList
 	err = l.cli.List(ctx, &classList)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list ingress classes: %w", err)
 	}
 
 	for _, item := range list.Items {

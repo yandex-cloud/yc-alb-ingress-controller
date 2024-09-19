@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"strings"
 
 	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
@@ -61,7 +62,7 @@ func (sc *Controller) SetupWithManager(mgr ctrl.Manager, secretEventChan chan ev
 		Reconciler:              sc,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create controller: %w", err)
 	}
 
 	sc.recorder = mgr.GetEventRecorderFor(k8s.ControllerName)
@@ -80,7 +81,7 @@ func (sc *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Res
 func (sc *Controller) doReconcile(ctx context.Context, req reconcile.Request) (*v1.Secret, error) {
 	certs, err := sc.repo.LoadCertificates(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load certificates: %w", err)
 	}
 
 	certName := sc.names.Certificate(req.NamespacedName)
@@ -96,12 +97,12 @@ func (sc *Controller) doReconcile(ctx context.Context, req reconcile.Request) (*
 		return nil, sc.repo.DeleteCertificate(ctx, cert.Id)
 	}
 	if err != nil {
-		return &secret, err
+		return &secret, fmt.Errorf("failed to get secret: %w", err)
 	}
 
 	secretKey, err := convertKeyIfNeeded(secret.Data["tls.key"])
 	if err != nil {
-		return &secret, err
+		return &secret, fmt.Errorf("failed to convert key: %w", err)
 	}
 
 	if cert == nil {
@@ -114,7 +115,7 @@ func (sc *Controller) doReconcile(ctx context.Context, req reconcile.Request) (*
 
 	certData, err := sc.repo.LoadCertificateData(ctx, cert.Id)
 	if err != nil {
-		return &secret, err
+		return &secret, fmt.Errorf("failed to load certificate data: %w", err)
 	}
 
 	if certNeedsUpdate(secret, certData) {
@@ -141,12 +142,12 @@ func convertKeyIfNeeded(bs []byte) (string, error) {
 
 	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse private key: %w", err)
 	}
 
 	encryptedKey, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to marshal private key: %w", err)
 	}
 
 	return string(pem.EncodeToMemory(&pem.Block{

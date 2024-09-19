@@ -27,7 +27,7 @@ func (r *IngressGroupEngine) ReconcileHTTPRouter(ctx context.Context, router *ap
 	}
 	ret, err := reconcileHTTPRouter(ctx, r.Repo, router, hostData, r.Predicates)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to reconcile http router: %w", err)
 	}
 
 	if ret.Active != nil {
@@ -44,7 +44,7 @@ func (r *IngressGroupEngine) ReconcileTLSRouter(ctx context.Context, router *app
 	}
 	ret, err := reconcileHTTPRouter(ctx, r.Repo, router, hostData, r.Predicates)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to reconcile tls router: %w", err)
 	}
 
 	if ret.Active != nil {
@@ -68,7 +68,7 @@ func (r *IngressGroupEngine) ReconcileBalancer(ctx context.Context, balancer *ap
 	if balancer == nil { // create
 		op, err := r.Repo.CreateLoadBalancer(context.Background(), r.Data.Balancer)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create load balancer: %w", err)
 		}
 		return nil, ycerrors.OperationIncompleteError{ID: op.Id}
 	}
@@ -95,7 +95,7 @@ func (r *IngressGroupEngine) ReconcileBalancer(ctx context.Context, balancer *ap
 	if r.Predicates.BalancerNeedsUpdate(balancer, r.Data.Balancer) {
 		op, err := r.Repo.UpdateLoadBalancer(context.Background(), r.Data.Balancer)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to update load balancer: %w", err)
 		}
 		return nil, ycerrors.OperationIncompleteError{ID: op.Id}
 	}
@@ -109,7 +109,7 @@ func reconcileHTTPRouter(ctx context.Context, repo Repository, currentRouter *ap
 	if currentRouter == nil {
 		op, err := repo.CreateHTTPRouter(ctx, d.Router)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create http router: %w", err)
 		}
 		protoMsg, _ := sdkoperation.UnmarshalAny(op.Metadata)
 		d.Router.Id = protoMsg.(*apploadbalancer.CreateHttpRouterMetadata).HttpRouterId
@@ -128,7 +128,7 @@ func reconcileHTTPRouter(ctx context.Context, repo Repository, currentRouter *ap
 	if predicates.RouterNeedsUpdate(currentRouter, d.Router) {
 		_, err := repo.UpdateHTTPRouter(context.Background(), d.Router)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to update http router: %w", err)
 		}
 	}
 	return &deploy.ReconciledHTTPRouter{Active: currentRouter}, nil

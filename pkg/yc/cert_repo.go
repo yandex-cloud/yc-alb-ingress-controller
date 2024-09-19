@@ -3,6 +3,7 @@ package yc
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/certificatemanager/v1"
 	ycsdk "github.com/yandex-cloud/go-sdk"
@@ -43,7 +44,7 @@ func NewCertRepo(sdk *ycsdk.SDK, folderID string) CertRepo {
 func (r *certRepo) LoadCertificate(ctx context.Context, name string) (*certificatemanager.Certificate, error) {
 	certs, err := r.LoadCertificates(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load certificates: %w", err)
 	}
 
 	return certs[name], nil
@@ -54,7 +55,7 @@ func (r *certRepo) LoadCertificates(ctx context.Context) (map[string]*certificat
 		FolderId: r.folderID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list certificates: %w", err)
 	}
 
 	result := make(map[string]*certificatemanager.Certificate)
@@ -78,7 +79,7 @@ func (r *certRepo) LoadCertificateData(ctx context.Context, id string) (*certifi
 		CertificateId: id,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get certificate data: %w", err)
 	}
 
 	return data, nil

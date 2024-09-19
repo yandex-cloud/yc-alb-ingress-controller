@@ -43,13 +43,13 @@ func NewTargetGroupBuilder(folderID string, cli client.Client, names *metadata.N
 func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName) (*apploadbalancer.TargetGroup, error) {
 	nodeNames, err := t.getServiceNodeNames(ctx, svc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get service node names: %w", err)
 	}
 
 	var k8ssvc v1.Service
 	err = t.cli.Get(ctx, svc, &k8ssvc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get service: %w", err)
 	}
 	preferIPv6 := k8ssvc.Annotations[k8s.PreferIPv6Targets] == "true"
 
@@ -60,12 +60,12 @@ func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName
 			Name: nodeName,
 		}, &node)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get node: %w", err)
 		}
 
 		instanceID, err := k8s.InstanceID(node)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get instance ID from node: %w", err)
 		}
 		instance, err := t.getInstanceFn(ctx, instanceID)
 		if err != nil {
@@ -74,12 +74,12 @@ func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName
 			if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 				continue
 			}
-			return nil, err
+			return nil, fmt.Errorf("failed to get instance fn: %w", err)
 		}
 
 		ip, err := k8s.GetNodeInternalIP(&node, preferIPv6)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get node internal IP: %w", err)
 		}
 
 		subnetID, err := yc.SubnetIDForProviderID(ip, instance)
@@ -117,7 +117,7 @@ func (t *TargetGroupBuilder) getServiceNodeNamesFromEndpointsSlice(ctx context.C
 			"kubernetes.io/service-name": svc.Name,
 		})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list endpoint slices: %w", err)
 	}
 
 	nodes := make([]string, 0)
@@ -142,7 +142,7 @@ func (t *TargetGroupBuilder) getServiceNodeNamesFromEndpoints(ctx context.Contex
 	var endpoints v1.Endpoints
 	err := t.cli.Get(ctx, svc, &endpoints)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get endpoints: %w", err)
 	}
 
 	nodes := make([]string, 0)

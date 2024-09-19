@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"fmt"
+
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -32,7 +34,7 @@ func (s *SecretsStore) Add(i interface{}) error {
 
 func (s *SecretsStore) Update(i interface{}) error {
 	if err := s.store.Update(i); err != nil {
-		return err
+		return fmt.Errorf("failed to update secret: %w", err)
 	}
 
 	obj := i.(client.Object)

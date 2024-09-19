@@ -69,7 +69,7 @@ type SessionAffinityOpts struct {
 func parseHeaderSessionAffinity(affinity string) (*apploadbalancer.HeaderSessionAffinity, error) {
 	m, err := k8s.ParseConfigsFromAnnotationValue(affinity)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse header session affinity: %w", err)
 	}
 
 	headername, ok := m["name"]
@@ -85,7 +85,7 @@ func parseHeaderSessionAffinity(affinity string) (*apploadbalancer.HeaderSession
 func parseCookieSessionAffinity(affinity string) (*apploadbalancer.CookieSessionAffinity, error) {
 	m, err := k8s.ParseConfigsFromAnnotationValue(affinity)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse cookie session affinity: %w", err)
 	}
 
 	cookiename, ok := m["name"]
@@ -97,7 +97,7 @@ func parseCookieSessionAffinity(affinity string) (*apploadbalancer.CookieSession
 	if ttlString, ok := m["ttl"]; ok {
 		ttlTime, err := time.ParseDuration(ttlString)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse ttl: %w", err)
 		}
 
 		ttl = durationpb.New(ttlTime)
@@ -132,7 +132,7 @@ func parseConnectionSessionAffinity(affinity string) (*apploadbalancer.Connectio
 func parseHealthChecks(healthChecks string) ([]*apploadbalancer.HealthCheck, error) {
 	m, err := k8s.ParseConfigsFromAnnotationValue(healthChecks)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 	healthCheck := healthCheckTemplate()
 

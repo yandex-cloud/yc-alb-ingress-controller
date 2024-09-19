@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
 	"k8s.io/client-go/tools/record"
@@ -58,7 +59,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.Service, error) {
 	svc, err := r.ServiceLoader.Load(ctx, req.NamespacedName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load service: %w", err)
 	}
 
 	if svc.ToReconcile != nil {
@@ -66,39 +67,39 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 
 		err = r.FinalizerManager.UpdateFinalizer(ctx, svc.ToReconcile, k8s.Finalizer)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to update finalizer: %w", err)
 		}
 
 		tg, err := r.TargetGroupBuilder.Build(ctx, req.NamespacedName)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to build target group: %w", err)
 		}
 
 		tg, err = r.TargetGroupDeployer.Deploy(ctx, tg)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to deploy target group: %w", err)
 		}
 
 		ings, err := r.IngressLoader.ListBySvc(ctx, *svc.ToReconcile)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to list ingresses by service: %w", err)
 		}
 
 		bg, err := r.BackendGroupBuilder.BuildForSvc(svc.ToReconcile, ings, tg.Id)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to build backend group: %w", err)
 		}
 
 		bg, err = r.BackendGroupDeployer.Deploy(ctx, bg)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to deploy backend group: %w", err)
 		}
 
 		err = r.AddIDsToGroupStatuses(ctx, *svc.ToReconcile, tg, bg)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to add ids to group statuses: %w", err)
 		}
-		return obj, err
+		return obj, nil
 	}
 
 	if svc.ToDelete != nil {
@@ -106,24 +107,24 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 
 		bg, err := r.BackendGroupDeployer.Undeploy(ctx, r.Names.NewBackendGroup(req.NamespacedName))
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to undeploy backend group: %w", err)
 		}
 
 		tg, err := r.TargetGroupDeployer.Undeploy(ctx, r.Names.TargetGroup(req.NamespacedName))
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to undeploy target group: %w", err)
 		}
 
 		err = r.RemoveIDsFromGroupStatuses(ctx, *svc.ToDelete, tg, bg)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to remove ids from group statuses: %w", err)
 		}
 
 		err = r.FinalizerManager.RemoveFinalizer(ctx, svc.ToDelete, k8s.Finalizer)
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("failed to remove finalizer: %w", err)
 		}
-		return obj, err
+		return obj, nil
 	}
 
 	return nil, err
@@ -143,14 +144,14 @@ func (r *Reconciler) updateGroupStatuses(
 ) error {
 	ings, err := r.IngressLoader.ListBySvc(ctx, svc)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list ingresses by service: %w", err)
 	}
 
 	groups := getGroupNamesFromIngresses(ings)
 	for group := range groups {
 		err = updateFunc(ctx, group)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to exec updateFunc: %w", err)
 		}
 	}
 
@@ -167,12 +168,12 @@ func (r *Reconciler) AddIDsToGroupStatuses(ctx context.Context, svc core.Service
 			}
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to load group status: %w", err)
 		}
 
 		err = r.GroupStatusManager.AddTargetGroupID(ctx, status, tg.Id)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to add target group id: %w", err)
 		}
 
 		return r.GroupStatusManager.AddBackendGroupID(ctx, status, bg.Id)
@@ -189,12 +190,12 @@ func (r *Reconciler) RemoveIDsFromGroupStatuses(ctx context.Context, svc core.Se
 		}
 
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to load group status: %w", err)
 		}
 
 		err = r.GroupStatusManager.RemoveTargetGroupID(ctx, status, tg.Id)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to remove target group id: %w", err)
 		}
 
 		return r.GroupStatusManager.RemoveBackendGroupID(ctx, status, bg.Id)
@@ -208,34 +209,34 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, useEndpointSlices bool) 
 		Reconciler:              r,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create controller: %w", err)
 	}
 
 	err = c.Watch(&source.Kind{Type: &core.Service{}}, eventhandlers.NewServiceEventHandler(mgr.GetLogger(), mgr.GetClient()))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to watch services: %w", err)
 	}
 
 	if useEndpointSlices {
 		err = c.Watch(&source.Kind{Type: &discovery.EndpointSlice{}}, eventhandlers.NewEndpointSliceEventHandler(mgr.GetLogger(), mgr.GetClient()))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to watch endpoint slices: %w", err)
 		}
 	} else {
 		err = c.Watch(&source.Kind{Type: &core.Endpoints{}}, eventhandlers.NewEndpointsEventHandler(mgr.GetLogger(), mgr.GetClient(), mgr.GetEventRecorderFor("service")))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to watch endpoints: %w", err)
 		}
 	}
 
 	err = c.Watch(&source.Kind{Type: &networking.Ingress{}}, eventhandlers.NewIngressEventHandler(mgr.GetLogger(), mgr.GetClient()))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to watch ingresses: %w", err)
 	}
 
 	err = c.Watch(&source.Kind{Type: &v1alpha1.HttpBackendGroup{}}, eventhandlers.NewHTTPBackendGroupEventHandler(mgr.GetLogger(), mgr.GetClient()))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to watch http backend groups: %w", err)
 	}
 
 	r.recorder = mgr.GetEventRecorderFor(k8s.ControllerName)

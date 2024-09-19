@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -26,13 +27,13 @@ func (l *ingressLoader) List(ctx context.Context, opts ...client.ListOption) ([]
 	var ingList networking.IngressList
 	err := l.cli.List(ctx, &ingList, opts...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list ingresses: %w", err)
 	}
 
 	var classList networking.IngressClassList
 	err = l.cli.List(ctx, &classList)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list ingress classes: %w", err)
 	}
 
 	result := make([]networking.Ingress, 0)
@@ -52,7 +53,7 @@ func (l *ingressLoader) List(ctx context.Context, opts ...client.ListOption) ([]
 func (l *ingressLoader) ListBySvc(ctx context.Context, svc core.Service) ([]networking.Ingress, error) {
 	ings, err := l.List(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list ingresses: %w", err)
 	}
 
 	res := make([]networking.Ingress, 0)

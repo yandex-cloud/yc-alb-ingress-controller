@@ -2,6 +2,7 @@ package reconcile
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,16 +40,16 @@ type HttpBackendGroupReconcileHandler struct { //nolint:revive
 func (b *HttpBackendGroupReconcileHandler) HandleResourceUpdated(ctx context.Context, o client.Object) error {
 	err := b.FinalizerManager.UpdateFinalizer(ctx, o, k8s.Finalizer)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update finalizer: %w", err)
 	}
 
 	hbg, err := b.Builder.BuildForCrd(ctx, o.(*v1alpha1.HttpBackendGroup))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build backend group: %w", err)
 	}
 	_, err = b.Deployer.Deploy(ctx, hbg)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to deploy backend group: %w", err)
 	}
 
 	return nil
@@ -57,14 +58,14 @@ func (b *HttpBackendGroupReconcileHandler) HandleResourceUpdated(ctx context.Con
 func (b *HttpBackendGroupReconcileHandler) HandleResourceDeleted(ctx context.Context, o client.Object) error {
 	bg, err := b.Repo.FindBackendGroupByCR(ctx, o.GetNamespace(), o.GetName())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find backend group: %w", err)
 	}
 	if bg == nil {
 		return b.FinalizerManager.RemoveFinalizer(ctx, o, k8s.Finalizer)
 	}
 	op, err := b.Repo.DeleteBackendGroup(ctx, bg)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete backend group: %w", err)
 	}
 	return ycerrors.OperationIncompleteError{ID: op.Id}
 }

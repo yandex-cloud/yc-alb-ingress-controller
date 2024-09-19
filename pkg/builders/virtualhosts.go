@@ -262,7 +262,7 @@ func (b *VirtualHostBuilder) addRoute(hp HostAndPath, createRoute createRouteFn)
 
 	route, err := createRoute(name, matchForPath(hp))
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating route: %w", err)
 	}
 
 	if _, ok := b.hosts[hp.Host]; !ok {

@@ -42,7 +42,7 @@ func (b *HttpBackendGroupForCrdBuilder) BuildForCrd(
 		if bcrd.Service != nil {
 			bgs, err := b.buildHttpBackendsForService(ctx, bgCR.Namespace, seenSvc, bcrd)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to build backends for service %s/%s: %w", bgCR.Namespace, bcrd.Service.Name, err)
 			}
 			backends = append(backends, bgs...)
 			continue
@@ -51,7 +51,7 @@ func (b *HttpBackendGroupForCrdBuilder) BuildForCrd(
 		if bcrd.StorageBucket != nil {
 			bg, err := b.buildHttpBackendForBucket(ctx, bgCR.Namespace, seenBucket, bcrd)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to build backend for bucket %s/%s: %w", bgCR.Namespace, bcrd.StorageBucket.Name, err)
 			}
 
 			if bg != nil {
@@ -87,7 +87,7 @@ func (b *HttpBackendGroupForCrdBuilder) buildHttpBackendsForService( //nolint:re
 		Name:      bgCrd.Service.Name,
 	}, &svc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get service %s/%s: %w", ns, bgCrd.Service.Name, err)
 	}
 	if svc.Spec.Type != core.ServiceTypeNodePort {
 		return nil, fmt.Errorf("type of service %s/%s used by CR HttpBackend %s is not NodePort",
@@ -97,7 +97,7 @@ func (b *HttpBackendGroupForCrdBuilder) buildHttpBackendsForService( //nolint:re
 	tgName := b.Names.TargetGroup(k8s.NamespacedNameOf(&svc))
 	tg, err := b.Repo.FindTargetGroup(ctx, tgName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find target group %s: %w", tgName, err)
 	}
 	if tg == nil {
 		return nil, ycerrors.YCResourceNotReadyError{ResourceType: "target group", Name: tgName}
@@ -112,7 +112,7 @@ func (b *HttpBackendGroupForCrdBuilder) buildHttpBackendsForService( //nolint:re
 
 	balancingConfig, err := parseBalancingConfigFromCRDConfig(bgCrd.LoadBalancingConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse load balancing config: %w", err)
 	}
 
 	var ret []*apploadbalancer.HttpBackend
@@ -167,7 +167,7 @@ func (b *HttpBackendGroupForCrdBuilder) buildHttpBackendForBucket( //nolint:revi
 
 	balancingConfig, err := parseBalancingConfigFromCRDConfig(bgCrd.LoadBalancingConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse load balancing config: %w", err)
 	}
 
 	return &apploadbalancer.HttpBackend{

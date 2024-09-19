@@ -16,7 +16,7 @@ type GroupSettingsLoader struct {
 func (l *GroupSettingsLoader) Load(ctx context.Context, g *IngressGroup) (*v1alpha1.IngressGroupSettings, error) {
 	name, err := getSettingsName(g)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get settings name: %w", err)
 	}
 
 	if name == "" {
@@ -26,7 +26,7 @@ func (l *GroupSettingsLoader) Load(ctx context.Context, g *IngressGroup) (*v1alp
 	var settings v1alpha1.IngressGroupSettings
 	err = l.Client.Get(ctx, types.NamespacedName{Name: name}, &settings)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get ingress group settings: %w", err)
 	}
 
 	return &settings, nil

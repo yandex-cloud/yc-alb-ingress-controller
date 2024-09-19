@@ -58,12 +58,12 @@ func (d *DefaultEngineBuilder) Build(ctx context.Context, g *k8s.IngressGroup, s
 	}
 	networkID, locations, err := d.locations(g)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build locations: %w", err)
 	}
 	addressParams := builders.AddressParams{DefaultSubnetID: locations[0].SubnetId}
 	addresses, err := d.addresses(g, addressParams)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build addresses: %w", err)
 	}
 	securityGroupIDs := d.securityGroupIDs(g)
 
@@ -81,12 +81,12 @@ func (d *DefaultEngineBuilder) Build(ctx context.Context, g *k8s.IngressGroup, s
 	b := builders.Data{}
 	b.HTTPHosts, b.TLSHosts, err = d.buildVirtualHosts(g)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build virtual hosts: %w", err)
 	}
 	b.Handler = d.buildHTTPHandler(g)
 	b.SNIMatches, err = d.buildSNIMatches(ctx, g)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build sni matches: %w", err)
 	}
 	b.LogOptions = d.buildLogOptions(settings)
 
@@ -114,7 +114,7 @@ func (d *DefaultEngineBuilder) locations(g *k8s.IngressGroup) (string, []*apploa
 	resolver := d.resolvers.Location()
 	for _, ing := range g.Items {
 		if err := resolver.Resolve(ing.GetAnnotations()[k8s.Subnets]); err != nil {
-			return "", nil, err
+			return "", nil, fmt.Errorf("failed to resolve location: %w", err)
 		}
 	}
 	return resolver.Result()
@@ -165,12 +165,12 @@ func (d *DefaultEngineBuilder) directResponses(ing networking.Ingress) (map[stri
 
 		configs, err := k8s.ParseConfigsFromAnnotationValue(value)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse config from annotation value: %w", err)
 		}
 
 		statusCode, err := strconv.Atoi(configs["status"])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse status code: %w", err)
 		}
 
 		result[strings.TrimPrefix(key, k8s.DirectResponsePrefix)] = &apploadbalancer.DirectResponseAction{
@@ -273,7 +273,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 			err := httpVHBuilder.AddHTTPDirectResponse(hp, directResponse)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to add direct response: %w", err)
 			}
 			return tlsVHBuilder.AddHTTPDirectResponse(hp, directResponse)
 		}
@@ -286,7 +286,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 			err := httpVHBuilder.AddRedirect(hp, redirect)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to add redirect: %w", err)
 			}
 			return tlsVHBuilder.AddRedirect(hp, redirect)
 		}
@@ -299,7 +299,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 			err := httpVHBuilder.AddHTTPRedirect(hp)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to add redirect: %w", err)
 			}
 
 			return tlsVHBuilder.AddRouteCR(hp, backend.Resource.Name)
@@ -313,7 +313,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			if backendType != builders.GRPC {
 				err := httpVHBuilder.AddHTTPRedirect(hp)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to add redirect: %w", err)
 				}
 			}
 
@@ -336,11 +336,11 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 		routeOpts, err := d.routeOpts(ing)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error getting routeOpts: %w", err)
 		}
 		vhOpts, err := d.vhOpts(ing)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error getting vhOpts: %w", err)
 		}
 
 		tlsVHBuilder.SetOpts(routeOpts, vhOpts, ing.Namespace)
@@ -348,7 +348,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 		directResponseActions, err := d.directResponses(ing)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error getting directResponseActions: %w", err)
 		}
 
 		redirectActions, err := d.redirects(ing)
@@ -364,12 +364,12 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			for _, path := range rule.HTTP.Paths {
 				hp, err := builders.HTTPIngressPathToHostAndPath(rule.Host, path, routeOpts.UseRegex)
 				if err != nil {
-					return nil, nil, err
+					return nil, nil, fmt.Errorf("error getting host and path: %w", err)
 				}
 
 				err = handleBackend(path.Backend, hp, k8s.IsTLS(hp.Host, ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
 				if err != nil {
-					return nil, nil, err
+					return nil, nil, fmt.Errorf("error handling backend: %w", err)
 				}
 			}
 		}
@@ -380,11 +380,11 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 		routeOpts, err := d.routeOpts(ing)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error getting routeOpts: %w", err)
 		}
 		vhOpts, err := d.vhOpts(ing)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error getting vhOpts: %w", err)
 		}
 
 		tlsVHBuilder.SetOpts(routeOpts, vhOpts, ing.Namespace)
@@ -392,7 +392,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 		directResponseActions, err := d.directResponses(ing)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error getting directResponseActions: %w", err)
 		}
 
 		redirectActions, err := d.redirects(ing)
@@ -409,7 +409,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 		err = handleBackend(*ing.Spec.DefaultBackend, hp, k8s.IsTLS("*", ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error handling backend: %w", err)
 		}
 
 		// handlers with pats, matching all the requests, with hosts specified in ingresses
@@ -422,7 +422,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 
 			err = handleBackend(*ing.Spec.DefaultBackend, hp, k8s.IsTLS(host, ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("error handling backend: %w", err)
 			}
 		}
 	}
@@ -448,7 +448,7 @@ func (d *DefaultEngineBuilder) buildSNIMatches(ctx context.Context, g *k8s.Ingre
 			certName := d.names.Certificate(nn)
 			cert, err := d.certRepo.LoadCertificate(ctx, certName)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error loading certificate: %w", err)
 			}
 
 			if cert == nil {

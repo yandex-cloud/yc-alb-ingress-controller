@@ -113,12 +113,12 @@ func (b *BackendGroupForSvcBuilder) BuildForSvc(svc *core.Service, ings []networ
 
 	nodePorts, err := collectPortsForService(svc, ings)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to collect ports for service: %w", err)
 	}
 
 	opts, err := b.backendOpts(svc, ings)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build backend opts: %w", err)
 	}
 
 	return b.buildForSvc(svc, nodePorts, tgID, opts)
@@ -127,7 +127,7 @@ func (b *BackendGroupForSvcBuilder) BuildForSvc(svc *core.Service, ings []networ
 func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []core.ServicePort, tgID string, opts BackendResolveOpts) (*apploadbalancer.BackendGroup, error) {
 	balancingConfig, err := parseBalancingConfigFromString(opts.BalancingMode)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse balancing config: %w", err)
 	}
 
 	var tls *apploadbalancer.BackendTls
@@ -142,12 +142,12 @@ func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []c
 			tls, opts.healthChecks,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to build grpc backends: %w", err)
 		}
 
 		sessionAffinity, err := parseGRPCSessionAffinityFromOpts(opts)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse grpc session affinity: %w", err)
 		}
 
 		backend = &apploadbalancer.BackendGroup_Grpc{Grpc: &apploadbalancer.GrpcBackendGroup{Backends: backends, SessionAffinity: sessionAffinity}}
@@ -157,12 +157,12 @@ func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []c
 			tls, opts.BackendType == HTTP2, opts.healthChecks,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to build http backends: %w", err)
 		}
 
 		sessionAffinity, err := parseHTTPSessionAffinityFromOpts(opts)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse http session affinity: %w", err)
 		}
 
 		backend = &apploadbalancer.BackendGroup_Http{Http: &apploadbalancer.HttpBackendGroup{Backends: backends, SessionAffinity: sessionAffinity}}
@@ -185,7 +185,7 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 	if !ok {
 		protocol, err = parseSvcAnnotationFromIngs(ings, k8s.Protocol)
 		if err != nil {
-			return BackendResolveOpts{}, err
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse protocol: %w", err)
 		}
 	}
 
@@ -193,7 +193,7 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 	if !ok {
 		balancingMode, err = parseSvcAnnotationFromIngs(ings, k8s.BalancingMode)
 		if err != nil {
-			return BackendResolveOpts{}, err
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse balancing mode: %w", err)
 		}
 	}
 
@@ -201,7 +201,7 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 	if !ok {
 		transportSecurity, err = parseSvcAnnotationFromIngs(ings, k8s.TransportSecurity)
 		if err != nil {
-			return BackendResolveOpts{}, err
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse transport security: %w", err)
 		}
 	}
 
@@ -209,7 +209,7 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 	if !ok {
 		saHeader, err = parseSvcAnnotationFromIngs(ings, k8s.SessionAffinityHeader)
 		if err != nil {
-			return BackendResolveOpts{}, err
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse session affinity header: %w", err)
 		}
 	}
 
@@ -217,7 +217,7 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 	if !ok {
 		saCookie, err = parseSvcAnnotationFromIngs(ings, k8s.SessionAffinityCookie)
 		if err != nil {
-			return BackendResolveOpts{}, err
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse session affinity cookie: %w", err)
 		}
 	}
 
@@ -225,7 +225,7 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 	if !ok {
 		saConnection, err = parseSvcAnnotationFromIngs(ings, k8s.SessionAffinityConnection)
 		if err != nil {
-			return BackendResolveOpts{}, err
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse session affinity connection: %w", err)
 		}
 	}
 
@@ -233,7 +233,7 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 	if !ok {
 		healthChecks, err = parseSvcAnnotationFromIngs(ings, k8s.HealthChecks)
 		if err != nil {
-			return BackendResolveOpts{}, err
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse health checks: %w", err)
 		}
 	}
 
@@ -242,7 +242,7 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 		saHeader, saCookie, saConnection, healthChecks,
 	)
 	if err != nil {
-		return BackendResolveOpts{}, err
+		return BackendResolveOpts{}, fmt.Errorf("failed to resolve backend opts: %w", err)
 	}
 
 	return opts, nil

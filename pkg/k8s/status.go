@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -110,7 +111,7 @@ func (h *GroupStatusManager) DeleteStatus(ctx context.Context, name string) erro
 		return nil
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load ingress group status: %w", err)
 	}
 
 	return h.cli.Delete(ctx, status)

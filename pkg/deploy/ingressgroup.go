@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 
@@ -53,20 +54,20 @@ func NewIngressGroupDeployManager(repo ResourceFinder) *IngressGroupDeployManage
 func (m *IngressGroupDeployManager) Deploy(ctx context.Context, tag string, engine ReconcileEngine) (yc.BalancerResources, error) {
 	resources, err := m.repo.FindAllResources(ctx, tag)
 	if err != nil {
-		return yc.BalancerResources{}, err
+		return yc.BalancerResources{}, fmt.Errorf("failed to find resources: %w", err)
 	}
 
 	httpRouter, err := engine.ReconcileHTTPRouter(ctx, resources.Router)
 	if err != nil {
-		return yc.BalancerResources{}, err
+		return yc.BalancerResources{}, fmt.Errorf("failed to reconcile http router: %w", err)
 	}
 	tlsRouter, err := engine.ReconcileTLSRouter(ctx, resources.TLSRouter)
 	if err != nil {
-		return yc.BalancerResources{}, err
+		return yc.BalancerResources{}, fmt.Errorf("failed to reconcile tls router: %w", err)
 	}
 	balancer, err := engine.ReconcileBalancer(ctx, resources.Balancer)
 	if err != nil {
-		return yc.BalancerResources{}, err
+		return yc.BalancerResources{}, fmt.Errorf("failed to reconcile balancer: %w", err)
 	}
 
 	err = m.repo.DeleteAllResources(ctx, &yc.BalancerResources{
@@ -75,7 +76,7 @@ func (m *IngressGroupDeployManager) Deploy(ctx context.Context, tag string, engi
 		TLSRouter: tlsRouter.Garbage,
 	})
 	if err != nil {
-		return yc.BalancerResources{}, err
+		return yc.BalancerResources{}, fmt.Errorf("failed to delete resources: %w", err)
 	}
 	return yc.BalancerResources{
 		Balancer:  balancer.Active,
@@ -87,7 +88,7 @@ func (m *IngressGroupDeployManager) Deploy(ctx context.Context, tag string, engi
 func (m *IngressGroupDeployManager) UndeployOldBG(ctx context.Context, tag string) error {
 	bgs, err := m.repo.FindBackendGroups(ctx, tag)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find backend groups: %w", err)
 	}
 
 	return m.repo.DeleteBackendGroups(ctx, bgs)

@@ -37,7 +37,7 @@ func NewServiceDeployer(repo TargetGroupRepo) *TargetGroupDeployer {
 func (d *TargetGroupDeployer) Undeploy(ctx context.Context, name string) (*apploadbalancer.TargetGroup, error) {
 	tg, err := d.repo.FindTargetGroup(ctx, name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find target group: %w", err)
 	}
 
 	if tg == nil {
@@ -50,7 +50,7 @@ func (d *TargetGroupDeployer) Undeploy(ctx context.Context, name string) (*applo
 func (d *TargetGroupDeployer) Deploy(ctx context.Context, expected *apploadbalancer.TargetGroup) (*apploadbalancer.TargetGroup, error) {
 	actual, err := d.repo.FindTargetGroup(ctx, expected.Name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find target group: %w", err)
 	}
 
 	// create if needed
