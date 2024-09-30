@@ -8,10 +8,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
+	ycerrors "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
 )
 
 type BackendGroupRepo interface {

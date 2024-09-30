@@ -1,3 +1,4 @@
+# This patch was added manually
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -9,10 +10,10 @@ spec:
       containers:
       - name: manager
         volumeMounts:
-          - name: service-key
-            mountPath: "/keys"
-            readOnly: true
-      volumes:
         - name: service-key
-          secret:
-            secretName: sa-key
+          mountPath: "/keys"
+          readOnly: true
+      volumes:
+      - name: service-key
+        secret:
+          secretName: sa-key

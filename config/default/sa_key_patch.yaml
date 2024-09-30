@@ -1,5 +1,4 @@
+# This patch was added manually
 - op: add
   path: "/spec/template/spec/containers/0/args/0"
   value: "--keyfile=/keys/ingress-key.json"
-
-

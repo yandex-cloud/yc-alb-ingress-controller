@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yandex-cloud/alb-ingress/controllers/ingress/eventhandlers"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/controllers/ingress/eventhandlers"
 	v1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,13 +22,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	"github.com/yandex-cloud/alb-ingress/controllers/errors"
-	"github.com/yandex-cloud/alb-ingress/pkg/yc"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/controllers/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/yc"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/deploy"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
-	reconcile2 "github.com/yandex-cloud/alb-ingress/pkg/reconcile"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/deploy"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
+	reconcile2 "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/reconcile"
 )
 
 //go:generate mockgen -destination=./mocks/mocks.go -package=mocks . GroupLoader,EngineBuilder,Deployer,StatusResolver

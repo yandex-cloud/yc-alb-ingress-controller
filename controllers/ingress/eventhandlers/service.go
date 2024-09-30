@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
 )
 
 const ServiceEventReasonFailedToListIngresses = "ServiceEventFailedToListIngresses"

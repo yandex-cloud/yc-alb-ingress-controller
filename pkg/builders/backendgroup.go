@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
 	"google.golang.org/protobuf/types/known/durationpb"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"

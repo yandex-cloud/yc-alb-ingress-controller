@@ -1,2 +1,3 @@
+# Created manually
 resources:
   - daemonset.yaml

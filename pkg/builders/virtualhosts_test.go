@@ -11,9 +11,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	networking "k8s.io/api/networking/v1"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/algo"
-	"github.com/yandex-cloud/alb-ingress/pkg/builders/mocks"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/algo"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/builders/mocks"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
 )
 
 func TestVirtualHosts(t *testing.T) {

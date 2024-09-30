@@ -1,11 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.16.1
   name: grpcbackendgroups.alb.yc.io
 spec:
   group: alb.yc.io
@@ -22,14 +20,19 @@ spec:
         description: GrpcBackendGroup is the Schema for the grpcbackendgroups API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -50,12 +53,14 @@ spec:
                             - serviceName
                             type: object
                           healthyThreshold:
-                            description: "Number of consecutive successful health
-                              checks required to mark an unhealthy target as healthy.
-                              \n Both `0` and `1` values amount to one successful
-                              check required. \n The value is ignored when a load
-                              balancer is initialized; a target is marked healthy
-                              after one successful check. \n Default value: `0`."
+                            description: |-
+                              Number of consecutive successful health checks required to mark an unhealthy target as healthy.
+
+                              Both `0` and `1` values amount to one successful check required.
+
+                              The value is ignored when a load balancer is initialized; a target is marked healthy after one successful check.
+
+                              Default value: `0`.
                             format: int64
                             type: integer
                           http:
@@ -73,20 +78,22 @@ spec:
                             format: int64
                             type: integer
                           timeout:
-                            description: "Health check timeout. \n The timeout is
-                              the time allowed for the target to respond to a check.
-                              If the target doesn't respond in time, the check is
-                              considered failed"
+                            description: |-
+                              Health check timeout.
+
+                              The timeout is the time allowed for the target to respond to a check.
+                              If the target doesn't respond in time, the check is considered failed
                             type: string
                           unhealthyThreshold:
-                            description: "Number of consecutive failed health checks
-                              required to mark a healthy target as unhealthy. \n Both
-                              `0` and `1` values amount to one unsuccessful check
-                              required. \n The value is ignored if a health check
-                              is failed due to an HTTP `503 Service Unavailable` response
-                              from the target (not applicable to TCP stream health
-                              checks). The target is immediately marked unhealthy.
-                              \n Default value: `0`."
+                            description: |-
+                              Number of consecutive failed health checks required to mark a healthy target as unhealthy.
+
+                              Both `0` and `1` values amount to one unsuccessful check required.
+
+                              The value is ignored if a health check is failed due to an HTTP `503 Service Unavailable` response from the target
+                              (not applicable to TCP stream health checks). The target is immediately marked unhealthy.
+
+                              Default value: `0`.
                             format: int64
                             type: integer
                         required:
@@ -114,13 +121,14 @@ spec:
                             referenced. See k8s.io/api/networking/v1/ServiceBackendPort
                           properties:
                             name:
-                              description: Name is the name of the port on the Service.
+                              description: |-
+                                Name is the name of the port on the Service.
                                 This is a mutually exclusive setting with "Number".
                               type: string
                             number:
-                              description: Number is the numerical port number (e.g.
-                                80) on the Service. This is a mutually exclusive setting
-                                with "Name".
+                              description: |-
+                                Number is the numerical port number (e.g. 80) on the Service.
+                                This is a mutually exclusive setting with "Name".
                               format: int32
                               type: integer
                           type: object
@@ -178,9 +186,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

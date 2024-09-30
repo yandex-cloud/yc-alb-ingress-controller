@@ -1,15 +1,16 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: manager-role
 rules:
 - apiGroups:
   - alb.yc.io
   resources:
   - grpcbackendgroups
+  - httpbackendgroups
+  - ingressgroupsettings
+  - ingressgroupstatuses
   verbs:
   - create
   - delete
@@ -22,66 +23,18 @@ rules:
   - alb.yc.io
   resources:
   - grpcbackendgroups/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - alb.yc.io
-  resources:
-  - grpcbackendgroups/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - alb.yc.io
-  resources:
-  - httpbackendgroups
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - alb.yc.io
-  resources:
   - httpbackendgroups/finalizers
   verbs:
   - update
 - apiGroups:
   - alb.yc.io
   resources:
+  - grpcbackendgroups/status
   - httpbackendgroups/status
   verbs:
   - get
   - patch
   - update
-- apiGroups:
-  - alb.yc.io
-  resources:
-  - ingressgroupsettings
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - alb.yc.io
-  resources:
-  - ingressgroupstatuses
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -105,14 +58,6 @@ rules:
   - ""
   resources:
   - nodes
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - secrets
   verbs:
   - get
@@ -148,17 +93,6 @@ rules:
   - networking.k8s.io
   resources:
   - ingressclasses
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.k8s.io
-  resources:
   - ingresses
   verbs:
   - create

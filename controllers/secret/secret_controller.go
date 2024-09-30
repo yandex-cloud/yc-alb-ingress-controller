@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/certificatemanager/v1"
@@ -23,9 +23,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	errors2 "github.com/yandex-cloud/alb-ingress/controllers/errors"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
-	"github.com/yandex-cloud/alb-ingress/pkg/yc"
+	errors2 "github.com/yandex-cloud/yc-alb-ingress-controller/controllers/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/yc"
 )
 
 type Controller struct {

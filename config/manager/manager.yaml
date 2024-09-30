@@ -3,6 +3,8 @@ kind: Namespace
 metadata:
   labels:
     control-plane: controller-manager
+    app.kubernetes.io/name: yc-alb-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
   name: system
 ---
 apiVersion: apps/v1
@@ -12,6 +14,8 @@ metadata:
   namespace: system
   labels:
     control-plane: controller-manager
+    app.kubernetes.io/name: yc-alb-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
 spec:
   selector:
     matchLabels:
@@ -19,6 +23,8 @@ spec:
   replicas: 1
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: controller-manager
     spec:
@@ -28,12 +34,14 @@ spec:
       - command:
         - /manager
         args:
-        - --leader-elect
+        - --health-probe-bind-address=:8081
         image: controller:latest
-        imagePullPolicy: Always
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
         livenessProbe:
           httpGet:
             path: /healthz
@@ -53,4 +61,8 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+        envFrom:
+        - configMapRef:
+            name: manager-config
+      serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

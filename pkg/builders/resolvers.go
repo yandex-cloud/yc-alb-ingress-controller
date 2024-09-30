@@ -14,8 +14,8 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/vpc/v1"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/algo"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/algo"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
 )
 
 //go:generate mockgen -destination=./mocks/mocks.go -package=mocks . SubnetRepository

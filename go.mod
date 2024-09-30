@@ -1,6 +1,7 @@
-module github.com/yandex-cloud/alb-ingress
+module github.com/yandex-cloud/yc-alb-ingress-controller
 
 go 1.22
+
 toolchain go1.22.6
 
 require (

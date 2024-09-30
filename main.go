@@ -1,11 +1,11 @@
 /*
-Copyright 2021.
+Copyright 2024.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package main
 
 import (
@@ -24,36 +23,33 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/yandex-cloud/alb-ingress/controllers/grpcbackendgroup"
-
 	ycsdk "github.com/yandex-cloud/go-sdk"
 	"github.com/yandex-cloud/go-sdk/iamkey"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
+
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
-	albv1alpha1 "github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	"github.com/yandex-cloud/alb-ingress/controllers/httpbackendgroup"
-	"github.com/yandex-cloud/alb-ingress/controllers/ingress"
-	"github.com/yandex-cloud/alb-ingress/controllers/secret"
-	"github.com/yandex-cloud/alb-ingress/controllers/service"
-	"github.com/yandex-cloud/alb-ingress/pkg/builders"
-	"github.com/yandex-cloud/alb-ingress/pkg/deploy"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
-	"github.com/yandex-cloud/alb-ingress/pkg/reconcile"
-	"github.com/yandex-cloud/alb-ingress/pkg/yc"
+	albv1alpha1 "github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/controllers/grpcbackendgroup"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/controllers/httpbackendgroup"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/controllers/ingress"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/controllers/secret"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/controllers/service"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/builders"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/deploy"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/reconcile"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/yc"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -66,21 +62,16 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(albv1alpha1.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
 	var (
-		metricsAddr          string
-		enableLeaderElection bool
-		probeAddr            string
-		useEndpointSlices    bool
+		probeAddr         string
+		useEndpointSlices bool
 	)
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&useEndpointSlices, "use-endpoint-slices", false,
 		"Use newer endpoint slices API instead of endpoints. "+
 			"Does not affect behavior, but will be used by default when endpoints api is deprecated")
@@ -151,14 +142,9 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "6fc44231.yc.io",
-		NewClient: func(_ cache.Cache, config *rest.Config, options client.Options, _ ...client.Object) (client.Client, error) {
-			return client.New(config, options)
-		},
+		// Explicitly disable LeaderElection
+		LeaderElection: false,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -286,8 +272,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "HttpBackendGroup")
 		os.Exit(1)
 	}
-
-	//+kubebuilder:scaffold:builder
+	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
@@ -299,8 +284,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-
-	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

@@ -3,16 +3,13 @@ ifneq (,$(wildcard ./.env))
 	export
 endif
 
-# temporarily support only Yandex Container registry to avoid providing imagePullSecrets
+# Temporarily support only Yandex Container registry to avoid providing imagePullSecrets
 REGISTRY_HOST?=cr.yandex
 IMG_NAME?=yc-alb-ingress-controller
 TAG?=$(shell git rev-parse --short HEAD)
 ifdef REGISTRY_ID
 	IMG = $(REGISTRY_HOST)/${REGISTRY_ID}/$(IMG_NAME):${TAG}
 endif
-
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -21,13 +18,25 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# CONTAINER_TOOL defines the container tool to be used for building images.
+# Be aware that the target commands are only tested with Docker which is
+# scaffolded by default. However, you might want to replace it to use other
+# tools. (i.e. podman)
+CONTAINER_TOOL ?= docker
+
+# Setting SHELL to bash allows bash commands to be executed by recipes.
+# Options are set to exit when a recipe line exits non-zero or a piped command fails.
+SHELL = /usr/bin/env bash -o pipefail
+.SHELLFLAGS = -ec
+
+.PHONY: all
 all: build
 
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
 # beneath their categories. The categories are represented by '##@' and the
-# target descriptions by '##'. The awk commands is responsible for reading the
+# target descriptions by '##'. The awk command is responsible for reading the
 # entire set of makefiles included in this invocation, looking for lines of the
 # file as xyz: ## something, and then pretty-format the target and help. Then,
 # if there's a line with ##@ something, that gets pretty-printed as a category.
@@ -36,6 +45,7 @@ all: build
 # More info on the awk command:
 # http://linuxcommand.org/lc3_adv_awk.php
 
+.PHONY: help
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
@@ -44,122 +54,171 @@ check_%:
 
 ##@ Development
 
+.PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	cd ${PROJECT_DIR} && $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./controllers/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
+.PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	cd ${PROJECT_DIR} && $(CONTROLLER_GEN) object:headerFile="./hack/boilerplate.go.txt" paths="./api/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+.PHONY: fmt
 fmt: ## Run go fmt against code.
-	cd ${PROJECT_DIR} && go fmt ./...
+	go fmt ./...
 
+.PHONY: vet
 vet: ## Run go vet against code.
-	cd ${PROJECT_DIR} && go vet ./...
+	go vet ./...
 
-ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
-SHELL='/bin/bash'
-test: manifests generate fmt vet ## Run tests.
-	mkdir -p ${ENVTEST_ASSETS_DIR}
-	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.7.0/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); cd ${PROJECT_DIR} && go test ./... -coverprofile cover.out
+.PHONY: test
+test: manifests generate fmt vet  ## Run tests.
+	go test ./... -coverprofile cover.out
+
+.PHONY: lint
+lint: golangci-lint ## Run golangci-lint linter
+	$(GOLANGCI_LINT) run
+
+.PHONY: lint-fix
+lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
+	$(GOLANGCI_LINT) run --fix
 
 ##@ Build
 
-build: generate fmt vet ## Build manager binary.
+.PHONY: build
+build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
-docker-build: check_IMG test ## Build docker image with the manager.
-	cd ${PROJECT_DIR} && docker build --platform linux/amd64 --build-arg CREATED_AT="$$(date --rfc-3339=seconds)" --build-arg COMMIT=$$(git rev-parse HEAD) -t ${IMG} .
+.PHONY: run
+run: manifests generate fmt vet check_FOLDER_ID check_KEY_FILE ## Run a controller from your host.
+	go run ./main.go --keyfile ${KEY_FILE} --folder-id ${FOLDER_ID}
 
-docker-push: check_IMG ## Push docker image with the manager.
-	docker push ${IMG}
+# If you wish to build the manager image targeting other platforms you can use the --platform flag.
+# (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
+# More info: https://docs.docker.com/develop/develop-images/build_enhancements/
+.PHONY: docker-build
+docker-build: ## Build docker image with the manager.
+	$(CONTAINER_TOOL) build -t ${IMG} .
+
+.PHONY: docker-push
+docker-push: ## Push docker image with the manager.
+	$(CONTAINER_TOOL) push ${IMG}
+
+# PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
+# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
+# - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
+# - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
+# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
+# To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
+PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+.PHONY: docker-buildx
+docker-buildx: ## Build and push docker image for the manager for cross-platform support
+	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
+	- $(CONTAINER_TOOL) buildx create --name ycp-controller-builder
+	$(CONTAINER_TOOL) buildx use ycp-controller-builder
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx rm ycp-controller-builder
+	rm Dockerfile.cross
+
+.PHONY: build-installer
+build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+	mkdir -p dist
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > dist/install.yaml
 
 ##@ Deployment
 
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ${KUBECONFIG} or ~/.kube/config.
-	$(KUSTOMIZE) build ${PROJECT_DIR}/config/crd | kubectl apply -f -
+ifndef ignore-not-found
+  ignore-not-found = false
+endif
 
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ${KUBECONFIG} or ~/.kube/config.
-	$(KUSTOMIZE) build ${PROJECT_DIR}/config/crd | kubectl delete -f -
+.PHONY: install
+install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
-deploy: manifests kustomize check_IMG check_FOLDER_ID check_KEY_FILE patch apply ## Deploy controller to the K8s cluster
+.PHONY: uninstall
+uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
-undeploy: check_FOLDER_ID check_KEY_FILE unapply unpatch ## Undeploy controller from the K8s cluster
+.PHONY: deploy
+deploy: manifests kustomize patch apply ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 
-CONTROLLER_GEN = $(PROJECT_DIR)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
-
-KUSTOMIZE =  ${PROJECT_DIR}/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
-
-# go-get-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
-
-apply: kustomize
-	$(KUSTOMIZE) build ${PROJECT_DIR}/config/default | kubectl apply -f -
-
-unapply: kustomize
-	$(KUSTOMIZE) build ${PROJECT_DIR}/config/default | kubectl delete -f -
+.PHONY: undeploy
+undeploy: kustomize unapply unpatch ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 
 PROD_ENDPOINT=api.cloud.yandex.net:443
-patch: check_IMG check_FOLDER_ID check_KEY_FILE
-	cp $(KEY_FILE)  ${PROJECT_DIR}/config/default/ingress-key.json
-	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit add patch \
-		--kind Deployment \
-		--name controller-manager \
-		--namespace system \
-		--patch '[{"op": "add", "path": "/spec/template/spec/containers/0/args/0", "value": "--folder-id='${FOLDER_ID}'"},{"op": "add", "path": "/spec/template/spec/containers/0/args/1", "value": "--endpoint='"$${ENDPOINT:-$(PROD_ENDPOINT)}"'"}]'
+.PHONY: patch
+patch: manifests kustomize check_KEY_FILE check_FOLDER_ID # Patch env to controller Deployment
+	cp $(KEY_FILE) ./config/default/ingress-key.json
+	cd ./config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd ./config/manager && $(KUSTOMIZE) edit set configmap manager-config \
+		--from-literal="YC_ALB_FOLDER_ID=${FOLDER_ID}" --namespace system
+	cd ./config/manager && $(KUSTOMIZE) edit set configmap manager-config \
+		--from-literal="YC_ENDPOINT=$${ENDPOINT:-$(PROD_ENDPOINT)}" --namespace system
 
-unpatch: check_FOLDER_ID
-	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit remove patch \
-		--kind Deployment \
-		--name controller-manager \
-		--namespace system \
-		--patch '[{"op": "add", "path": "/spec/template/spec/containers/0/args/0", "value": "--folder-id='${FOLDER_ID}'"},{"op": "add", "path": "/spec/template/spec/containers/0/args/1", "value": "--endpoint='"$${ENDPOINT:-$(PROD_ENDPOINT)}"'"}]' || true
-	cd ${PROJECT_DIR}/config/manager && $(KUSTOMIZE) edit set image controller=controller
-	rm -f ${PROJECT_DIR}/config/default/ingress-key.json
+.PHONY: unpatch
+unpatch: manifests kustomize # Unpatch env from controller Deployment
+	cd ./config/manager && $(KUSTOMIZE) edit set configmap manager-config \
+		--from-literal="YC_ALB_FOLDER_ID={{ FOLDER_ID }}" --namespace system
+	cd ./config/manager && $(KUSTOMIZE) edit set configmap manager-config \
+		--from-literal="YC_ENDPOINT={{ ENDPOINT }}" --namespace system
+	cd ./config/manager && $(KUSTOMIZE) edit set image controller=controller
+	rm -f ./config/default/ingress-key.json || true
 
-GO_EXCLUDE := /vendor/|/bin/|/genproto/|.pb.go|.gen.go|sensitive.go|validate.go
-GO_FILES_CMD := find . -name '*.go' | grep -v -E '$(GO_EXCLUDE)'
-Q = $(if $(filter 1,$V),,@)
+.PHONY: apply
+apply: manifests kustomize
+	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
-##@ local
+.PHONY: unapply
+unapply: manifests kustomize
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
-gomod: ## Run go mod vendor
-	$(Q) >&2 GOPRIVATE=bb.yandex-team.ru,bb.yandexcloud.net go mod tidy
-	$(Q) >&2 GOPRIVATE=bb.yandex-team.ru,bb.yandexcloud.net go mod vendor
+##@ Dependencies
 
-GOIMPORTS = $(shell pwd)/bin/goimports
-goimports: ## Install goimports if necessary
-	$(call go-get-tool,$(GOIMPORTS),golang.org/x/tools/cmd/goimports@v0.24.0)
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
 
-imports: goimports ## Run goimports on all go files
-	$(Q) $(GO_FILES_CMD) | xargs -n 50 $(GOIMPORTS) -w -local github.com/yandex-cloud/alb-ingress
+## Tool Binaries
+KUBECTL ?= kubectl
+# Forced without ?, because otherwise $KUSTOMIZE from e2e will break logic 
+KUSTOMIZE = $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 
+## Tool Versions
+KUSTOMIZE_VERSION ?= v5.4.3
+CONTROLLER_TOOLS_VERSION ?= v0.16.1
+GOLANGCI_LINT_VERSION ?= v1.59.1
 
-GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
-golangci-lint: ## Download golangci-lint locally if necessary.
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1)
+.PHONY: kustomize
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
+$(KUSTOMIZE): $(LOCALBIN)
+	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
-lint: golangci-lint
-	$(Q) $(GOLANGCI_LINT) run ./... -v
+.PHONY: controller-gen
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
 
-lint-fix: golangci-lint
-	$(Q) $(GOLANGCI_LINT) run ./... -v --fix
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
+$(GOLANGCI_LINT): $(LOCALBIN)
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
 
-ci: lint
-	go test ./...
+# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
+# $1 - target path with name of binary
+# $2 - package url which can be installed
+# $3 - specific version of package
+define go-install-tool
+@[ -f "$(1)-$(3)" ] || { \
+set -e; \
+package=$(2)@$(3) ;\
+echo "Downloading $${package}" ;\
+rm -f $(1) || true ;\
+GOBIN=$(LOCALBIN) go install $${package} ;\
+mv $(1) $(1)-$(3) ;\
+} ;\
+ln -sf $(1)-$(3) $(1)
+endef

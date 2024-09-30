@@ -12,12 +12,12 @@ import (
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/builders"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
-	"github.com/yandex-cloud/alb-ingress/pkg/yc"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/builders"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/yc"
 )
 
 type DefaultEngineBuilder struct {

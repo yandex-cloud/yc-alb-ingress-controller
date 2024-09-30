@@ -6,7 +6,7 @@ import (
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/yc"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/yc"
 )
 
 // TODO: data structures below should be in some other package

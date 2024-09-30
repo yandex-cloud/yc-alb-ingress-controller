@@ -7,8 +7,8 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/operation"
 
-	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
-	"github.com/yandex-cloud/alb-ingress/pkg/yc"
+	ycerrors "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/yc"
 )
 
 type BackendGroupRepo interface {

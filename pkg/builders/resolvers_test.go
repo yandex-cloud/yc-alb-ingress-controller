@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/builders/mocks"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/builders/mocks"
 )
 
 func TestAddressResolver(t *testing.T) {

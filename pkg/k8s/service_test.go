@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	albv1alpha1 "github.com/yandex-cloud/alb-ingress/api/v1alpha1"
+	albv1alpha1 "github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
 )
 
 func TestServiceLoader_Load(t *testing.T) {

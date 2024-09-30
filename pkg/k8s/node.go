@@ -6,7 +6,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	errors2 "github.com/yandex-cloud/alb-ingress/pkg/errors"
+	errors2 "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
 )
 
 func InstanceID(node v1.Node) (string, error) {

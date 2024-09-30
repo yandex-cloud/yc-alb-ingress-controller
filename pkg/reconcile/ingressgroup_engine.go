@@ -7,10 +7,10 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	sdkoperation "github.com/yandex-cloud/go-sdk/operation"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/builders"
-	"github.com/yandex-cloud/alb-ingress/pkg/deploy"
-	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/builders"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/deploy"
+	ycerrors "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
 )
 
 type IngressGroupEngine struct {

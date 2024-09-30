@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"

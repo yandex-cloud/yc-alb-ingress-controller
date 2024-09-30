@@ -14,10 +14,10 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	networking "k8s.io/api/networking/v1"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/builders"
-	"github.com/yandex-cloud/alb-ingress/pkg/deploy"
-	errors2 "github.com/yandex-cloud/alb-ingress/pkg/errors"
-	"github.com/yandex-cloud/alb-ingress/pkg/reconcile/mocks"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/builders"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/deploy"
+	errors2 "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/reconcile/mocks"
 )
 
 type backendGroupsFixture struct {

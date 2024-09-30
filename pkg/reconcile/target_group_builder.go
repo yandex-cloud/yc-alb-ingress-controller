@@ -13,9 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
-	"github.com/yandex-cloud/alb-ingress/pkg/yc"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/yc"
 )
 
 type TargetGroupBuilder struct {

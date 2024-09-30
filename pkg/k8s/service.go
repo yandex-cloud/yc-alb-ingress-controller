@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
 )
 
 type ServiceLoader interface {

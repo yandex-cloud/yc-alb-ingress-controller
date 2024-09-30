@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
+	ycerrors "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
 )
 
 const (

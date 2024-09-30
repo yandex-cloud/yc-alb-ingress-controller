@@ -21,7 +21,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
 	"k8s.io/client-go/tools/record"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	albv1alpha1 "github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	errors2 "github.com/yandex-cloud/alb-ingress/controllers/errors"
+	albv1alpha1 "github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
+	errors2 "github.com/yandex-cloud/yc-alb-ingress-controller/controllers/errors"
 )
 
 // Reconciler reconciles a HttpBackendGroup object

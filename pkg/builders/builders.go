@@ -4,7 +4,7 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
 )
 
 //go:generate mockgen -destination=./mocks/builders.go -package=mocks . TargetGroupFinder

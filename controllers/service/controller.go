@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
+	ycerrors "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
@@ -17,14 +17,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/yandex-cloud/alb-ingress/api/v1alpha1"
-	errors2 "github.com/yandex-cloud/alb-ingress/controllers/errors"
-	"github.com/yandex-cloud/alb-ingress/controllers/service/eventhandlers"
-	"github.com/yandex-cloud/alb-ingress/pkg/builders"
-	"github.com/yandex-cloud/alb-ingress/pkg/deploy"
-	"github.com/yandex-cloud/alb-ingress/pkg/k8s"
-	"github.com/yandex-cloud/alb-ingress/pkg/metadata"
-	ingressreconcile "github.com/yandex-cloud/alb-ingress/pkg/reconcile"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
+	errors2 "github.com/yandex-cloud/yc-alb-ingress-controller/controllers/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/controllers/service/eventhandlers"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/builders"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/deploy"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/k8s"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
+	ingressreconcile "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/reconcile"
 )
 
 //+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch

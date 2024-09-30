@@ -8,7 +8,7 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/operation"
 	"google.golang.org/protobuf/proto"
 
-	ycerrors "github.com/yandex-cloud/alb-ingress/pkg/errors"
+	ycerrors "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
 
 	// this package need to be vendored for mockgen to work, but nothing depends on it in this project
 	_ "github.com/golang/mock/mockgen/model"
