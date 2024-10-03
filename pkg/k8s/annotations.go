@@ -83,7 +83,39 @@ func ParseConfigsFromAnnotationValue(s string) (map[string]string, error) {
 			return nil, fmt.Errorf("wrong config format in annotation: %s", s)
 		}
 
+		if len(words[0]) == 0 {
+			return nil, fmt.Errorf("empty key in annotation: %s", s)
+		}
+
 		result[words[0]] = words[1]
+	}
+
+	return result, nil
+}
+
+func ParseModifyHeadersFromAnnotationValue(s string) (map[string]string, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
+
+	result := make(map[string]string)
+
+	elements := strings.Split(s, ",")
+	for _, element := range elements {
+		words := strings.Split(element, "=")
+		if len(words) != 2 {
+			return nil, fmt.Errorf("wrong config format in annotation: %s", s)
+		}
+
+		if len(words[0]) == 0 {
+			return nil, fmt.Errorf("empty key in annotation: %s", s)
+		}
+
+		if _, has := result[words[0]]; has {
+			result[words[0]] += "," + words[1]
+		} else {
+			result[words[0]] = words[1]
+		}
 	}
 
 	return result, nil

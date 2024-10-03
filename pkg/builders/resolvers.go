@@ -482,22 +482,22 @@ func (r *VirtualHostOptsResolver) Resolve(removeHeader, renameHeader, appendHead
 	var ret VirtualHostResolveOpts
 
 	var err error
-	ret.ModifyResponse.Append, err = k8s.ParseConfigsFromAnnotationValue(appendHeader)
+	ret.ModifyResponse.Append, err = k8s.ParseModifyHeadersFromAnnotationValue(appendHeader)
 	if err != nil {
 		return VirtualHostResolveOpts{}, err
 	}
 
-	ret.ModifyResponse.Rename, err = k8s.ParseConfigsFromAnnotationValue(renameHeader)
+	ret.ModifyResponse.Rename, err = k8s.ParseModifyHeadersFromAnnotationValue(renameHeader)
 	if err != nil {
 		return VirtualHostResolveOpts{}, err
 	}
 
-	ret.ModifyResponse.Replace, err = k8s.ParseConfigsFromAnnotationValue(replaceHeader)
+	ret.ModifyResponse.Replace, err = k8s.ParseModifyHeadersFromAnnotationValue(replaceHeader)
 	if err != nil {
 		return VirtualHostResolveOpts{}, err
 	}
 
-	removeOpts, err := k8s.ParseConfigsFromAnnotationValue(removeHeader)
+	removeOpts, err := k8s.ParseModifyHeadersFromAnnotationValue(removeHeader)
 	if err != nil {
 		return VirtualHostResolveOpts{}, err
 	}
