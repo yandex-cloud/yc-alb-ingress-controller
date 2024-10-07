@@ -175,6 +175,8 @@ func main() {
 	builders.SetupDefaultHealthChecks(enableDefaultHealthChecks)
 
 	if err = (&service.Reconciler{
+		Repo: repo,
+
 		TargetGroupBuilder:  reconcile.NewTargetGroupBuilder(folderID, cli, names, labels, repo.FindInstanceByID, useEndpointSlices),
 		TargetGroupDeployer: deploy.NewServiceDeployer(repo),
 

@@ -46,31 +46,29 @@ func (h *GroupStatusManager) AddBackendGroupID(ctx context.Context, status *v1al
 
 func (h *GroupStatusManager) RemoveTargetGroupID(ctx context.Context, status *v1alpha1.IngressGroupStatus, tgID string) error {
 	oldStatus := status.DeepCopy()
+	tgIDs := []string{}
 
-	for i, id := range status.TargetGroupIDs {
+	for _, id := range status.TargetGroupIDs {
 		if id != tgID {
-			continue
+			tgIDs = append(tgIDs, id)
 		}
-
-		status.TargetGroupIDs = append(status.TargetGroupIDs[:i], status.TargetGroupIDs[i+1:]...)
-		break
 	}
 
+	status.TargetGroupIDs = tgIDs
 	return h.cli.Patch(ctx, status, client.MergeFrom(oldStatus))
 }
 
 func (h *GroupStatusManager) RemoveBackendGroupID(ctx context.Context, status *v1alpha1.IngressGroupStatus, bgID string) error {
 	oldStatus := status.DeepCopy()
+	bgIDs := []string{}
 
-	for i, id := range status.BackendGroupIDs {
+	for _, id := range status.BackendGroupIDs {
 		if id != bgID {
-			continue
+			bgIDs = append(bgIDs, id)
 		}
-
-		status.BackendGroupIDs = append(status.BackendGroupIDs[:i], status.BackendGroupIDs[i+1:]...)
-		break
 	}
 
+	status.BackendGroupIDs = bgIDs
 	return h.cli.Patch(ctx, status, client.MergeFrom(oldStatus))
 }
 

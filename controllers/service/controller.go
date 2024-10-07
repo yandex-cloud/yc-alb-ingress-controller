@@ -27,11 +27,18 @@ import (
 	ingressreconcile "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/reconcile"
 )
 
+type BackendGroupFinder interface {
+	FindTargetGroup(ctx context.Context, name string) (*apploadbalancer.TargetGroup, error)
+	FindBackendGroup(ctx context.Context, name string) (*apploadbalancer.BackendGroup, error)
+}
+
 //+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch;
 
 // Reconciler reconciles a Node object
 type Reconciler struct {
+	Repo BackendGroupFinder
+
 	TargetGroupBuilder  *ingressreconcile.TargetGroupBuilder
 	TargetGroupDeployer *deploy.TargetGroupDeployer
 
@@ -105,19 +112,31 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 	if svc.ToDelete != nil {
 		obj := svc.ToDelete
 
-		bg, err := r.BackendGroupDeployer.Undeploy(ctx, r.Names.NewBackendGroup(req.NamespacedName))
-		if err != nil {
-			return obj, fmt.Errorf("failed to undeploy backend group: %w", err)
-		}
+		bgName := r.Names.NewBackendGroup(req.NamespacedName)
+		tgName := r.Names.TargetGroup(req.NamespacedName)
 
-		tg, err := r.TargetGroupDeployer.Undeploy(ctx, r.Names.TargetGroup(req.NamespacedName))
+		bg, err := r.Repo.FindBackendGroup(ctx, bgName)
 		if err != nil {
-			return obj, fmt.Errorf("failed to undeploy target group: %w", err)
+			return obj, fmt.Errorf("failed to find backend group: %w", err)
+		}
+		tg, err := r.Repo.FindTargetGroup(ctx, tgName)
+		if err != nil {
+			return obj, fmt.Errorf("failed to find target group: %w", err)
 		}
 
 		err = r.RemoveIDsFromGroupStatuses(ctx, *svc.ToDelete, tg, bg)
 		if err != nil {
 			return obj, fmt.Errorf("failed to remove ids from group statuses: %w", err)
+		}
+
+		_, err = r.BackendGroupDeployer.Undeploy(ctx, bgName)
+		if err != nil {
+			return obj, fmt.Errorf("failed to undeploy backend group: %w", err)
+		}
+
+		_, err = r.TargetGroupDeployer.Undeploy(ctx, tgName)
+		if err != nil {
+			return obj, fmt.Errorf("failed to undeploy target group: %w", err)
 		}
 
 		err = r.FinalizerManager.RemoveFinalizer(ctx, svc.ToDelete, k8s.Finalizer)
@@ -176,7 +195,11 @@ func (r *Reconciler) AddIDsToGroupStatuses(ctx context.Context, svc core.Service
 			return fmt.Errorf("failed to add target group id: %w", err)
 		}
 
-		return r.GroupStatusManager.AddBackendGroupID(ctx, status, bg.Id)
+		err = r.GroupStatusManager.AddBackendGroupID(ctx, status, bg.Id)
+		if err != nil {
+			return fmt.Errorf("failed to add backend group id: %w", err)
+		}
+		return err
 	})
 }
 
@@ -198,7 +221,11 @@ func (r *Reconciler) RemoveIDsFromGroupStatuses(ctx context.Context, svc core.Se
 			return fmt.Errorf("failed to remove target group id: %w", err)
 		}
 
-		return r.GroupStatusManager.RemoveBackendGroupID(ctx, status, bg.Id)
+		err = r.GroupStatusManager.RemoveBackendGroupID(ctx, status, bg.Id)
+		if err != nil {
+			return fmt.Errorf("failed to remove backend group id: %w", err)
+		}
+		return err
 	})
 }
 
