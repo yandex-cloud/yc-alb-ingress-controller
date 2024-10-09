@@ -74,7 +74,8 @@ func errorOutcome(err error) string {
 	if errors.As(err, &ycerrors.ResourceNotReadyError{}) ||
 		errors.As(err, &ycerrors.OperationIncompleteError{}) ||
 		errors.As(err, &ycerrors.YCResourceNotReadyError{}) ||
-		st != nil && st.Code() == codes.FailedPrecondition {
+		st != nil &&
+			st.Code() == codes.FailedPrecondition || st.Code() == codes.NotFound {
 		return REQUEUE
 	}
 	return FAIL
