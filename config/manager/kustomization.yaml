@@ -10,11 +10,13 @@ images:
 - name: controller
   newName: controller
 
-configMapGenerator:
-- literals:
   # This vars is supposed to be injected by `make patch`
   # They will be injected as env in controller pod
+configMapGenerator:
+- literals:
   - YC_ALB_FOLDER_ID={{ FOLDER_ID }}
   - YC_ENDPOINT={{ ENDPOINT }}
   name: manager-config
   namespace: system
+  options:
+    disableNameSuffixHash: true
