@@ -7,8 +7,8 @@ import (
 type Data struct {
 	TargetGroups  []*apploadbalancer.TargetGroup
 	BackendGroups *BackendGroups
-	HTTPHosts     *VirtualHostData
-	TLSHosts      *VirtualHostData
+	HTTPRouter    *HTTPRouterData
+	TLSRouter     *HTTPRouterData
 	Handler       *apploadbalancer.HttpHandler
 	SNIMatches    []*apploadbalancer.SniMatch
 	Balancer      *apploadbalancer.LoadBalancer

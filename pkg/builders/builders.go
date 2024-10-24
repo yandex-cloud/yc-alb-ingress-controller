@@ -1,7 +1,6 @@
 package builders
 
 import (
-	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
@@ -45,8 +44,8 @@ func (f *Factory) RestartVirtualHostIDGenerator() {
 	f.hostIDs = &vhIDs
 }
 
-func (f *Factory) VirtualHostBuilder(tag string, backendGroupFinder BackendGroupFinder) *VirtualHostBuilder {
-	return &VirtualHostBuilder{
+func (f *Factory) HTTPRouterBuilder(tag string, backendGroupFinder BackendGroupFinder) *HTTPRouterBuilder {
+	return &HTTPRouterBuilder{
 		tag:      tag,
 		folderID: f.folderID,
 		names:    f.names,
@@ -55,15 +54,14 @@ func (f *Factory) VirtualHostBuilder(tag string, backendGroupFinder BackendGroup
 		nextRouteID: f.routeIDs,
 		nextVHID:    f.hostIDs,
 
-		httpRouteMap: make(map[HostAndPath]*apploadbalancer.Route),
-		hosts:        make(map[string]HostInfo),
+		vhs: make(map[string]*VirtualHost),
 
 		backendGroupFinder: backendGroupFinder,
 	}
 }
 
-func (f *Factory) TLSVirtualHostBuilder(tag string, backendGroupFinder BackendGroupFinder) *VirtualHostBuilder {
-	ret := f.VirtualHostBuilder(tag, backendGroupFinder)
+func (f *Factory) TLSHTTPRouterBuilder(tag string, backendGroupFinder BackendGroupFinder) *HTTPRouterBuilder {
+	ret := f.HTTPRouterBuilder(tag, backendGroupFinder)
 	ret.isTLS = true
 	return ret
 }

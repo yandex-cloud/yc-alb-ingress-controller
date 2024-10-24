@@ -1,60 +1,55 @@
 package builders
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/algo"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/algo/maps"
+	errors2 "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
 	"google.golang.org/protobuf/types/known/durationpb"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	errors2 "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
-	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
 )
 
-//go:generate mockgen -destination=./mocks/backendgroups.go -package=mocks . BackendGroupFinder
-
-type (
-	createRouteFn        func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error)
-	createRouteWithSvcFn func(name string, match *apploadbalancer.StringMatch, svcName string) (*apploadbalancer.Route, error)
-)
-
-type BackendGroupFinder interface {
-	FindBackendGroup(ctx context.Context, name string) (*apploadbalancer.BackendGroup, error)
+type HTTPRouterData struct {
+	Router *apploadbalancer.HttpRouter
 }
 
-type VirtualHostBuilder struct {
-	httpRouteMap map[HostAndPath]*apploadbalancer.Route
-	routeOrder   []HostAndPath
-	hosts        map[string]HostInfo
+type HTTPRouterBuilder struct {
+	vhs map[string]*VirtualHost
 
-	nextVHID    interface{ Next() int }
 	nextRouteID interface{ Next() int }
+	nextVHID    interface{ Next() int }
+	labels      *metadata.Labels
+	names       *metadata.Names
 
-	names    *metadata.Names
-	labels   *metadata.Labels
 	tag      string
 	folderID string
+	isTLS    bool
 
-	isTLS          bool
-	useRegex       bool
-	allowedMethods []string
-
-	createRoute   createRouteWithSvcFn
-	createRouteCR createRouteWithSvcFn
-
-	modifyResponseOpts ModifyResponseOpts
-	securityProfileID  string
+	vhOpts    VirtualHostResolveOpts
+	routeOpts RouteResolveOpts
+	ingNs     string
 
 	backendGroupFinder BackendGroupFinder
 }
 
-type HostInfo struct {
-	Host  string
-	Order int
+type VirtualHost struct {
+	host    string
+	order   int
+	opts    VirtualHostResolveOpts
+	hpCount map[HostAndPath]int
+	routes  []*apploadbalancer.Route
+}
 
-	ModifyResponseOpts ModifyResponseOpts
+type VirtualHostResolveOpts struct {
+	ModifyResponse ModifyResponseOpts
+
+	SecurityProfileID string
 }
 
 type ModifyResponseOpts struct {
@@ -74,13 +69,137 @@ type RouteResolveOpts struct {
 	AllowedMethods []string
 }
 
-type VirtualHostResolveOpts struct {
-	ModifyResponse ModifyResponseOpts
-
-	SecurityProfileID string
+type BackendGroupFinder interface {
+	FindBackendGroup(ctx context.Context, name string) (*apploadbalancer.BackendGroup, error)
 }
 
-func httpRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolveOpts, bgID string) *apploadbalancer.Route {
+func (b *HTTPRouterBuilder) SetOpts(
+	vhOpts VirtualHostResolveOpts,
+	routeOpts RouteResolveOpts,
+	ingNs string,
+) {
+	b.vhOpts = vhOpts
+	b.routeOpts = routeOpts
+	b.ingNs = ingNs
+}
+
+func (b *HTTPRouterBuilder) AddRoute(hp HostAndPath, svcName string) error {
+	bgName := b.names.NewBackendGroup(types.NamespacedName{
+		Namespace: b.ingNs,
+		Name:      svcName,
+	})
+	bg, err := b.backendGroupFinder.FindBackendGroup(context.TODO(), bgName)
+
+	if bg == nil {
+		return errors2.ResourceNotReadyError{ResourceType: "BackendGroup", Name: bgName}
+	}
+
+	if err != nil {
+		return fmt.Errorf("error finding backend group: %w", err)
+	}
+
+	var route *apploadbalancer.Route
+	if b.routeOpts.BackendType == GRPC {
+		route = grpcRoute(hp, b.routeOpts, bg.Id)
+	} else {
+		route = httpRoute(hp, b.routeOpts, bg.Id)
+	}
+
+	return b.appendRoute(hp, route)
+}
+
+func (b *HTTPRouterBuilder) AddRouteToResource(hp HostAndPath, resourceName string) error {
+	bgName := b.names.BackendGroupForCR(b.ingNs, resourceName)
+	bg, err := b.backendGroupFinder.FindBackendGroup(context.TODO(), bgName)
+
+	if bg == nil {
+		return errors2.ResourceNotReadyError{ResourceType: "BackendGroup", Name: bgName}
+	}
+
+	if err != nil {
+		return fmt.Errorf("error finding backend group: %w", err)
+	}
+
+	var route *apploadbalancer.Route
+	if b.routeOpts.BackendType == GRPC {
+		route = grpcRoute(hp, b.routeOpts, bg.Id)
+	} else {
+		route = httpRoute(hp, b.routeOpts, bg.Id)
+	}
+
+	return b.appendRoute(hp, route)
+}
+
+func (b *HTTPRouterBuilder) AddHTTPDirectResponse(hp HostAndPath, directResponse *apploadbalancer.DirectResponseAction) error {
+	action := &apploadbalancer.HttpRoute_DirectResponse{
+		DirectResponse: directResponse,
+	}
+	route := httpRouteForAction(hp, action, b.routeOpts.AllowedMethods)
+
+	return b.appendRoute(hp, route)
+}
+
+func (b *HTTPRouterBuilder) AddRedirectToHTTPS(hp HostAndPath) error {
+	action := &apploadbalancer.HttpRoute_Redirect{
+		Redirect: &apploadbalancer.RedirectAction{
+			ReplaceScheme: "https",
+			ReplacePort:   443,
+			RemoveQuery:   false,
+			ResponseCode:  apploadbalancer.RedirectAction_MOVED_PERMANENTLY,
+		},
+	}
+	route := httpRouteForAction(hp, action, b.routeOpts.AllowedMethods)
+
+	return b.appendRoute(hp, route)
+}
+
+func (b *HTTPRouterBuilder) AddRedirect(hp HostAndPath, redirect *apploadbalancer.RedirectAction) error {
+	action := &apploadbalancer.HttpRoute_Redirect{
+		Redirect: redirect,
+	}
+	route := httpRouteForAction(hp, action, b.routeOpts.AllowedMethods)
+
+	return b.appendRoute(hp, route)
+}
+
+func (b *HTTPRouterBuilder) GetHosts() map[string]*VirtualHost {
+	return b.vhs
+}
+
+func (b *HTTPRouterBuilder) Build() *HTTPRouterData {
+	httpVirtualHosts := make([]*apploadbalancer.VirtualHost, len(b.vhs))
+	hostOrder := make([]*VirtualHost, len(b.vhs))
+	for _, vh := range b.vhs {
+		hostOrder[vh.order] = vh
+	}
+
+	for i, vh := range hostOrder {
+		httpVirtualHosts[i] = &apploadbalancer.VirtualHost{
+			Name:         b.names.VirtualHostForID(b.tag, b.nextVHID.Next()),
+			Authority:    []string{vh.host},
+			Routes:       vh.routes,
+			RouteOptions: buildRouteOpts(vh.opts.ModifyResponse, vh.opts.SecurityProfileID),
+		}
+	}
+
+	routerNameFn := b.names.Router
+	if b.isTLS {
+		routerNameFn = b.names.RouterTLS
+	}
+	router := &apploadbalancer.HttpRouter{
+		FolderId:     b.folderID,
+		Name:         routerNameFn(b.tag),
+		Description:  "router for k8s ingress with tag: " + b.tag,
+		Labels:       b.labels.Default(),
+		VirtualHosts: httpVirtualHosts,
+	}
+
+	return &HTTPRouterData{
+		Router: router,
+	}
+}
+
+func httpRoute(hp HostAndPath, opts RouteResolveOpts, bgID string) *apploadbalancer.Route {
 	var action apploadbalancer.HttpRoute_Action = &apploadbalancer.HttpRoute_Route{
 		Route: &apploadbalancer.HttpRouteAction{
 			Timeout:        opts.Timeout,
@@ -90,30 +209,21 @@ func httpRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolv
 			BackendGroupId: bgID,
 		},
 	}
-	return httpRouteForAction(name, match, action, opts.AllowedMethods)
+	return httpRouteForAction(hp, action, opts.AllowedMethods)
 }
 
-func httpDirectResponseRoute(name string, match *apploadbalancer.StringMatch, directResponse *apploadbalancer.DirectResponseAction, methods []string) *apploadbalancer.Route {
-	action := &apploadbalancer.HttpRoute_DirectResponse{
-		DirectResponse: directResponse,
-	}
-
-	return httpRouteForAction(name, match, action, methods)
-}
-
-func httpRouteForAction(name string, match *apploadbalancer.StringMatch, action apploadbalancer.HttpRoute_Action, methods []string) *apploadbalancer.Route {
+func httpRouteForAction(hp HostAndPath, action apploadbalancer.HttpRoute_Action, methods []string) *apploadbalancer.Route {
 	return &apploadbalancer.Route{
-		Name: name,
 		Route: &apploadbalancer.Route_Http{
 			Http: &apploadbalancer.HttpRoute{
-				Match:  &apploadbalancer.HttpRouteMatch{Path: match, HttpMethod: methods},
+				Match:  &apploadbalancer.HttpRouteMatch{Path: matchForPath(hp), HttpMethod: methods},
 				Action: action,
 			},
 		},
 	}
 }
 
-func grpcRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolveOpts, bgID string) *apploadbalancer.Route {
+func grpcRoute(hp HostAndPath, opts RouteResolveOpts, bgID string) *apploadbalancer.Route {
 	action := &apploadbalancer.GrpcRoute_Route{
 		Route: &apploadbalancer.GrpcRouteAction{
 			MaxTimeout:     opts.Timeout,
@@ -122,163 +232,91 @@ func grpcRoute(name string, match *apploadbalancer.StringMatch, opts RouteResolv
 		},
 	}
 	return &apploadbalancer.Route{
-		Name: name,
 		Route: &apploadbalancer.Route_Grpc{
 			Grpc: &apploadbalancer.GrpcRoute{
-				Match:  &apploadbalancer.GrpcRouteMatch{Fqmn: match},
+				Match:  &apploadbalancer.GrpcRouteMatch{Fqmn: matchForPath(hp)},
 				Action: action,
 			},
 		},
 	}
 }
 
-func (b *VirtualHostBuilder) GetHosts() map[string]HostInfo {
-	return b.hosts
-}
-
-func (b *VirtualHostBuilder) AddHTTPDirectResponse(hp HostAndPath, directResponse *apploadbalancer.DirectResponseAction) error {
-	if _, ok := b.httpRouteMap[hp]; ok {
-		return nil
-	}
-
-	return b.addRoute(hp, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		return httpDirectResponseRoute(name, match, directResponse, b.allowedMethods), nil
-	})
-}
-
-func (b *VirtualHostBuilder) AddRedirect(hp HostAndPath, redirect *apploadbalancer.RedirectAction) error {
-	// do not overwrite route action with redirect
-	if _, ok := b.httpRouteMap[hp]; ok {
-		return nil
-	}
-
-	createHTTPRedirect := func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		var action apploadbalancer.HttpRoute_Action = &apploadbalancer.HttpRoute_Redirect{
-			Redirect: redirect,
-		}
-		return httpRouteForAction(name, match, action, b.allowedMethods), nil
-	}
-
-	return b.addRoute(hp, createHTTPRedirect)
-}
-
-func (b *VirtualHostBuilder) AddHTTPRedirect(hp HostAndPath) error {
-	// do not overwrite route action with redirect
-	if _, ok := b.httpRouteMap[hp]; ok {
-		return nil
-	}
-
-	createHTTPRedirect := func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		var action apploadbalancer.HttpRoute_Action = &apploadbalancer.HttpRoute_Redirect{
-			Redirect: &apploadbalancer.RedirectAction{
-				ReplaceScheme: "https",
-				ReplacePort:   443,
-				RemoveQuery:   false,
-				ResponseCode:  apploadbalancer.RedirectAction_MOVED_PERMANENTLY,
-			},
-		}
-		return httpRouteForAction(name, match, action, b.allowedMethods), nil
-	}
-
-	return b.addRoute(hp, createHTTPRedirect)
-}
-
-func (b *VirtualHostBuilder) SetOpts(routeOpts RouteResolveOpts, vhOpts VirtualHostResolveOpts, ingNamespace string) {
-	if routeOpts.BackendType == GRPC {
-		createRoute := func(name, bgName string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-			bg, err := b.backendGroupFinder.FindBackendGroup(context.TODO(), bgName)
-			if bg == nil {
-				return nil, errors2.ResourceNotReadyError{ResourceType: "BackendGroup", Name: bgName}
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf("error finding backend group: %w", err)
-			}
-
-			return grpcRoute(name, match, routeOpts, bg.Id), nil
-		}
-
-		b.createRoute = func(name string, match *apploadbalancer.StringMatch, svcName string) (*apploadbalancer.Route, error) {
-			bgName := b.names.NewBackendGroup(types.NamespacedName{
-				Namespace: ingNamespace,
-				Name:      svcName,
-			})
-
-			return createRoute(name, bgName, match)
-		}
-
-		b.createRouteCR = func(name string, match *apploadbalancer.StringMatch, bgName string) (*apploadbalancer.Route, error) {
-			return createRoute(name, b.names.BackendGroupForCR(ingNamespace, bgName), match)
-		}
-	} else {
-		createRoute := func(name, bgName string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-			bg, err := b.backendGroupFinder.FindBackendGroup(context.TODO(), bgName)
-			if bg == nil {
-				return nil, errors2.ResourceNotReadyError{ResourceType: "BackendGroup", Name: bgName}
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf("error finding backend group: %w", err)
-			}
-
-			return httpRoute(name, match, routeOpts, bg.Id), nil
-		}
-
-		b.createRoute = func(name string, match *apploadbalancer.StringMatch, svcName string) (*apploadbalancer.Route, error) {
-			bgName := b.names.NewBackendGroup(types.NamespacedName{
-				Namespace: ingNamespace,
-				Name:      svcName,
-			})
-
-			return createRoute(name, bgName, match)
-		}
-
-		b.createRouteCR = func(name string, match *apploadbalancer.StringMatch, bgName string) (*apploadbalancer.Route, error) {
-			return createRoute(name, b.names.BackendGroupForCR(ingNamespace, bgName), match)
-		}
-	}
-
-	b.securityProfileID = vhOpts.SecurityProfileID
-	b.modifyResponseOpts = vhOpts.ModifyResponse
-	b.useRegex = routeOpts.UseRegex
-
-	b.allowedMethods = routeOpts.AllowedMethods
-}
-
-func (b *VirtualHostBuilder) AddRoute(hp HostAndPath, serviceName string) error {
-	return b.addRoute(hp, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		return b.createRoute(name, match, serviceName)
-	})
-}
-
-func (b *VirtualHostBuilder) AddRouteCR(hp HostAndPath, resourceName string) error {
-	return b.addRoute(hp, func(name string, match *apploadbalancer.StringMatch) (*apploadbalancer.Route, error) {
-		return b.createRouteCR(name, match, resourceName)
-	})
-}
-
-func (b *VirtualHostBuilder) addRoute(hp HostAndPath, createRoute createRouteFn) error {
-	name := b.names.RouteForPath(b.tag, hp.Host, hp.Path, hp.PathType)
-
-	route, err := createRoute(name, matchForPath(hp))
+func (b *HTTPRouterBuilder) appendRoute(hp HostAndPath, route *apploadbalancer.Route) error {
+	err := b.buildVH(hp.Host)
 	if err != nil {
-		return fmt.Errorf("error creating route: %w", err)
+		return fmt.Errorf("error building virtual host: %w", err)
 	}
 
-	if _, ok := b.hosts[hp.Host]; !ok {
-		b.hosts[hp.Host] = HostInfo{
-			Order:              len(b.hosts),
-			Host:               hp.Host,
-			ModifyResponseOpts: b.modifyResponseOpts,
-		}
-	}
-
-	if _, ok := b.httpRouteMap[hp]; !ok {
-		b.routeOrder = append(b.routeOrder, hp)
-	}
-	// overwrite with subsequent route for the same Host&Path. Shall we throw an error instead?
-	b.httpRouteMap[hp] = route
+	route.Name = b.routeName(hp)
+	b.vhs[hp.Host].routes = append(b.vhs[hp.Host].routes, route)
+	b.vhs[hp.Host].hpCount[hp]++
 	return nil
+}
+
+func (b *HTTPRouterBuilder) buildVH(host string) error {
+	if vh, ok := b.vhs[host]; ok {
+		var err error
+		vh.opts, err = mergeVHOpts(vh.opts, b.vhOpts)
+		if err != nil {
+			return fmt.Errorf("can't merge vh options: %w", err)
+		}
+		return nil
+	}
+
+	b.vhs[host] = &VirtualHost{
+		host:    host,
+		order:   len(b.vhs),
+		opts:    b.vhOpts.Clone(),
+		routes:  []*apploadbalancer.Route{},
+		hpCount: make(map[HostAndPath]int),
+	}
+
+	return nil
+}
+
+func (b *HTTPRouterBuilder) routeName(hp HostAndPath) string {
+	vh, ok := b.vhs[hp.Host]
+	// If route with specific HostPath is first in VirtualHost: add without order index
+	// Because backward compatibilities
+	if !ok || vh.hpCount[hp] == 0 {
+		return b.names.RouteForPath(b.tag, hp.Host, hp.Path, hp.PathType)
+	}
+
+	return b.names.RouteForPath2(b.tag, hp.Host, hp.Path, hp.PathType, vh.hpCount[hp])
+}
+
+func mergeVHOpts(opts1, opts2 VirtualHostResolveOpts) (VirtualHostResolveOpts, error) {
+	opts := VirtualHostResolveOpts{}
+	sID1 := opts1.SecurityProfileID
+	sID2 := opts2.SecurityProfileID
+	if sID1 != sID2 && (sID1 != "" && sID2 != "") {
+		return opts, fmt.Errorf("conflict with vh security profiles: %s and %s", opts1.SecurityProfileID, opts2.SecurityProfileID)
+	}
+
+	opts.SecurityProfileID = cmp.Or(sID1, sID2)
+
+	var err error
+	opts.ModifyResponse.Append, err = algo.MapMerge(opts1.ModifyResponse.Append, opts2.ModifyResponse.Append)
+	if err != nil {
+		return opts, fmt.Errorf("conflict with vh modify response append: %w", err)
+	}
+
+	opts.ModifyResponse.Remove, err = algo.MapMerge(opts1.ModifyResponse.Remove, opts2.ModifyResponse.Remove)
+	if err != nil {
+		return opts, fmt.Errorf("conflict with vh modify response remove: %w", err)
+	}
+
+	opts.ModifyResponse.Rename, err = algo.MapMerge(opts1.ModifyResponse.Rename, opts2.ModifyResponse.Rename)
+	if err != nil {
+		return opts, fmt.Errorf("conflict with vh modify response rename: %w", err)
+	}
+
+	opts.ModifyResponse.Replace, err = algo.MapMerge(opts1.ModifyResponse.Replace, opts2.ModifyResponse.Replace)
+	if err != nil {
+		return opts, fmt.Errorf("conflict with vh modify response replace: %w", err)
+	}
+
+	return opts, nil
 }
 
 func buildModifyHeaderOpts(modifyResponse ModifyResponseOpts) []*apploadbalancer.HeaderModification {
@@ -341,46 +379,6 @@ func buildRouteOpts(modifyResponseOpts ModifyResponseOpts, securityProfileID str
 	}
 }
 
-func (b *VirtualHostBuilder) Build() *VirtualHostData {
-	if len(b.routeOrder) == 0 {
-		return nil
-	}
-	routeMap := make(map[string][]*apploadbalancer.Route, len(b.hosts))
-	httpVirtualHosts := make([]*apploadbalancer.VirtualHost, len(b.hosts))
-	hostOrder := make([]HostInfo, len(b.hosts))
-	for _, hostAndPath := range b.routeOrder {
-		routeMap[hostAndPath.Host] = append(routeMap[hostAndPath.Host], b.httpRouteMap[hostAndPath])
-	}
-	for _, info := range b.hosts {
-		hostOrder[info.Order] = info
-	}
-	for i, host := range hostOrder {
-		httpVirtualHosts[i] = &apploadbalancer.VirtualHost{
-			Name:         b.names.VirtualHostForID(b.tag, b.nextVHID.Next()),
-			Authority:    []string{host.Host},
-			Routes:       routeMap[host.Host],
-			RouteOptions: buildRouteOpts(b.modifyResponseOpts, b.securityProfileID),
-		}
-	}
-
-	routerNameFn := b.names.Router
-	if b.isTLS {
-		routerNameFn = b.names.RouterTLS
-	}
-	router := &apploadbalancer.HttpRouter{
-		FolderId:     b.folderID,
-		Name:         routerNameFn(b.tag),
-		Description:  "router for k8s ingress with tag: " + b.tag,
-		Labels:       b.labels.Default(),
-		VirtualHosts: httpVirtualHosts,
-	}
-
-	return &VirtualHostData{
-		Router:       router,
-		HTTPRouteMap: b.httpRouteMap,
-	}
-}
-
 func matchForPath(hp HostAndPath) *apploadbalancer.StringMatch {
 	if hp.Path == "" {
 		return nil
@@ -399,7 +397,14 @@ func matchForPath(hp HostAndPath) *apploadbalancer.StringMatch {
 	return &apploadbalancer.StringMatch{Match: match}
 }
 
-type VirtualHostData struct {
-	HTTPRouteMap map[HostAndPath]*apploadbalancer.Route
-	Router       *apploadbalancer.HttpRouter
+func (opts VirtualHostResolveOpts) Clone() VirtualHostResolveOpts {
+	return VirtualHostResolveOpts{
+		SecurityProfileID: opts.SecurityProfileID,
+		ModifyResponse: ModifyResponseOpts{
+			Append:  maps.Clone(opts.ModifyResponse.Append),
+			Remove:  maps.Clone(opts.ModifyResponse.Remove),
+			Replace: maps.Clone(opts.ModifyResponse.Replace),
+			Rename:  maps.Clone(opts.ModifyResponse.Rename),
+		},
+	}
 }

@@ -21,11 +21,11 @@ type IngressGroupEngine struct {
 }
 
 func (r *IngressGroupEngine) ReconcileHTTPRouter(ctx context.Context, router *apploadbalancer.HttpRouter) (*deploy.ReconciledHTTPRouter, error) {
-	var hostData *builders.VirtualHostData
+	var routerData *builders.HTTPRouterData
 	if r.Data != nil {
-		hostData = r.HTTPHosts
+		routerData = r.HTTPRouter
 	}
-	ret, err := reconcileHTTPRouter(ctx, r.Repo, router, hostData, r.Predicates)
+	ret, err := reconcileHTTPRouter(ctx, r.Repo, router, routerData, r.Predicates)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reconcile http router: %w", err)
 	}
@@ -38,11 +38,11 @@ func (r *IngressGroupEngine) ReconcileHTTPRouter(ctx context.Context, router *ap
 }
 
 func (r *IngressGroupEngine) ReconcileTLSRouter(ctx context.Context, router *apploadbalancer.HttpRouter) (*deploy.ReconciledHTTPRouter, error) {
-	var hostData *builders.VirtualHostData
+	var routerData *builders.HTTPRouterData
 	if r.Data != nil {
-		hostData = r.TLSHosts
+		routerData = r.TLSRouter
 	}
-	ret, err := reconcileHTTPRouter(ctx, r.Repo, router, hostData, r.Predicates)
+	ret, err := reconcileHTTPRouter(ctx, r.Repo, router, routerData, r.Predicates)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reconcile tls router: %w", err)
 	}
@@ -55,7 +55,7 @@ func (r *IngressGroupEngine) ReconcileTLSRouter(ctx context.Context, router *app
 }
 
 func (r *IngressGroupEngine) ReconcileBalancer(ctx context.Context, balancer *apploadbalancer.LoadBalancer) (*deploy.ReconciledBalancer, error) {
-	if r.Data == nil || (r.HTTPHosts == nil || len(r.HTTPHosts.HTTPRouteMap) == 0) && (r.TLSHosts == nil || len(r.TLSHosts.HTTPRouteMap) == 0) { // assume no routes means no ingresses -> delete
+	if r.Data == nil || (r.HTTPRouter == nil || len(r.HTTPRouter.Router.VirtualHosts) == 0) && (r.TLSRouter == nil || len(r.TLSRouter.Router.VirtualHosts) == 0) { // assume no routes means no ingresses -> delete
 		if balancer.GetStatus() == apploadbalancer.LoadBalancer_DELETING {
 			return nil, ycerrors.YCResourceNotReadyError{
 				ResourceType: "ALB",
@@ -102,7 +102,7 @@ func (r *IngressGroupEngine) ReconcileBalancer(ctx context.Context, balancer *ap
 	return &deploy.ReconciledBalancer{Active: balancer}, nil
 }
 
-func reconcileHTTPRouter(ctx context.Context, repo Repository, currentRouter *apploadbalancer.HttpRouter, d *builders.VirtualHostData, predicates UpdatePredicates) (*deploy.ReconciledHTTPRouter, error) {
+func reconcileHTTPRouter(ctx context.Context, repo Repository, currentRouter *apploadbalancer.HttpRouter, d *builders.HTTPRouterData, predicates UpdatePredicates) (*deploy.ReconciledHTTPRouter, error) {
 	if d == nil || d.Router == nil || len(d.Router.VirtualHosts) == 0 {
 		return &deploy.ReconciledHTTPRouter{Garbage: currentRouter}, nil
 	}

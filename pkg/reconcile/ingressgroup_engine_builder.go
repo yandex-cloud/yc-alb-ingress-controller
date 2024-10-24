@@ -79,7 +79,7 @@ func (d *DefaultEngineBuilder) Build(ctx context.Context, g *k8s.IngressGroup, s
 	}
 
 	b := builders.Data{}
-	b.HTTPHosts, b.TLSHosts, err = d.buildVirtualHosts(g)
+	b.HTTPRouter, b.TLSRouter, err = d.buildVirtualHosts(g)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build virtual hosts: %w", err)
 	}
@@ -252,10 +252,10 @@ func (d *DefaultEngineBuilder) redirects(ing networking.Ingress) (map[string]*ap
 	return result, nil
 }
 
-func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders.VirtualHostData, *builders.VirtualHostData, error) {
+func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders.HTTPRouterData, *builders.HTTPRouterData, error) {
 	d.factory.RestartVirtualHostIDGenerator()
-	httpVHBuilder := d.factory.VirtualHostBuilder(g.Tag, d.bgFinder)
-	tlsVHBuilder := d.factory.TLSVirtualHostBuilder(g.Tag, d.bgFinder)
+	httpVHBuilder := d.factory.HTTPRouterBuilder(g.Tag, d.bgFinder)
+	tlsVHBuilder := d.factory.TLSHTTPRouterBuilder(g.Tag, d.bgFinder)
 
 	handleBackend := func(
 		backend networking.IngressBackend,
@@ -294,15 +294,15 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 		if backend.Resource != nil &&
 			(backend.Resource.Kind == "HttpBackendGroup" || backend.Resource.Kind == "GrpcBackendGroup") {
 			if !isTlS {
-				return httpVHBuilder.AddRouteCR(hp, backend.Resource.Name)
+				return httpVHBuilder.AddRouteToResource(hp, backend.Resource.Name)
 			}
 
-			err := httpVHBuilder.AddHTTPRedirect(hp)
+			err := httpVHBuilder.AddRedirectToHTTPS(hp)
 			if err != nil {
 				return fmt.Errorf("failed to add redirect: %w", err)
 			}
 
-			return tlsVHBuilder.AddRouteCR(hp, backend.Resource.Name)
+			return tlsVHBuilder.AddRouteToResource(hp, backend.Resource.Name)
 		}
 
 		if backend.Service != nil {
@@ -311,7 +311,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			}
 
 			if backendType != builders.GRPC {
-				err := httpVHBuilder.AddHTTPRedirect(hp)
+				err := httpVHBuilder.AddRedirectToHTTPS(hp)
 				if err != nil {
 					return fmt.Errorf("failed to add redirect: %w", err)
 				}
@@ -343,8 +343,8 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			return nil, nil, fmt.Errorf("error getting vhOpts: %w", err)
 		}
 
-		tlsVHBuilder.SetOpts(routeOpts, vhOpts, ing.Namespace)
-		httpVHBuilder.SetOpts(routeOpts, vhOpts, ing.Namespace)
+		tlsVHBuilder.SetOpts(vhOpts, routeOpts, ing.Namespace)
+		httpVHBuilder.SetOpts(vhOpts, routeOpts, ing.Namespace)
 
 		directResponseActions, err := d.directResponses(ing)
 		if err != nil {
@@ -387,8 +387,8 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			return nil, nil, fmt.Errorf("error getting vhOpts: %w", err)
 		}
 
-		tlsVHBuilder.SetOpts(routeOpts, vhOpts, ing.Namespace)
-		httpVHBuilder.SetOpts(routeOpts, vhOpts, ing.Namespace)
+		tlsVHBuilder.SetOpts(vhOpts, routeOpts, ing.Namespace)
+		httpVHBuilder.SetOpts(vhOpts, routeOpts, ing.Namespace)
 
 		directResponseActions, err := d.directResponses(ing)
 		if err != nil {
@@ -400,21 +400,9 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			return nil, nil, fmt.Errorf("error getting redirectActions: %w", err)
 		}
 
-		// host and path to match all the request, with hosts different from others
-		hp := builders.HostAndPath{
-			Host:     "*",
-			Path:     "/",
-			PathType: string(networking.PathTypePrefix),
-		}
-
-		err = handleBackend(*ing.Spec.DefaultBackend, hp, k8s.IsTLS("*", ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error handling backend: %w", err)
-		}
-
 		// handlers with pats, matching all the requests, with hosts specified in ingresses
 		for host := range httpVHBuilder.GetHosts() {
-			hp = builders.HostAndPath{
+			hp := builders.HostAndPath{
 				Host:     host,
 				Path:     "/",
 				PathType: string(networking.PathTypePrefix),
@@ -424,6 +412,17 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			if err != nil {
 				return nil, nil, fmt.Errorf("error handling backend: %w", err)
 			}
+		}
+
+		// host and path to match all the request, with hosts different from others
+		hp := builders.HostAndPath{
+			Host:     "*",
+			Path:     "/",
+			PathType: string(networking.PathTypePrefix),
+		}
+		err = handleBackend(*ing.Spec.DefaultBackend, hp, k8s.IsTLS("*", ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error handling backend: %w", err)
 		}
 	}
 

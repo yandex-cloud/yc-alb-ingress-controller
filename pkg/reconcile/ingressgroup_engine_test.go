@@ -116,12 +116,7 @@ func data(f *fixture) *builders.Data {
 				"backend_group_3": f.expbg3,
 			},
 		},
-		HTTPHosts: &builders.VirtualHostData{
-			HTTPRouteMap: map[builders.HostAndPath]*apploadbalancer.Route{
-				{Host: "anywhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:     f.httpRoute1,
-				{Host: "anywhere.ru", Path: "/wander", PathType: string(networking.PathTypePrefix)}: f.httpRedirectRoute2,
-				{Host: "elsewhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:    f.httpRedirectRoute3,
-			},
+		HTTPRouter: &builders.HTTPRouterData{
 			Router: &apploadbalancer.HttpRouter{
 				VirtualHosts: []*apploadbalancer.VirtualHost{
 					{
@@ -135,11 +130,7 @@ func data(f *fixture) *builders.Data {
 				},
 			},
 		},
-		TLSHosts: &builders.VirtualHostData{
-			HTTPRouteMap: map[builders.HostAndPath]*apploadbalancer.Route{
-				{Host: "anywhere.ru", Path: "/wander", PathType: string(networking.PathTypePrefix)}: f.tlsRoute1,
-				{Host: "elsewhere.ru", Path: "/go", PathType: string(networking.PathTypePrefix)}:    f.tlsRoute2,
-			},
+		TLSRouter: &builders.HTTPRouterData{
 			Router: &apploadbalancer.HttpRouter{
 				VirtualHosts: []*apploadbalancer.VirtualHost{
 					{
@@ -233,7 +224,7 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 	t.Run("delete", func(t *testing.T) {
 		f := newFixture()
 		d := data(f)
-		d.HTTPHosts, d.TLSHosts, d.Balancer = nil, nil, nil
+		d.HTTPRouter, d.TLSRouter, d.Balancer = nil, nil, nil
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
 		repo := mocks.NewMockRepository(ctrl)
@@ -252,7 +243,7 @@ func TestIngressGroupEngine_ReconcileBalancer(t *testing.T) {
 	t.Run("delete, status deleting", func(t *testing.T) {
 		f := newFixture()
 		d := data(f)
-		d.HTTPHosts, d.TLSHosts, d.Balancer = nil, nil, nil
+		d.HTTPRouter, d.TLSRouter, d.Balancer = nil, nil, nil
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
 		repo := mocks.NewMockRepository(ctrl)
@@ -296,10 +287,10 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
-		p.EXPECT().RouterNeedsUpdate(router, d.HTTPHosts.Router).Return(true)
+		p.EXPECT().RouterNeedsUpdate(router, d.HTTPRouter.Router).Return(true)
 		repo := mocks.NewMockRepository(ctrl)
 
-		repo.EXPECT().UpdateHTTPRouter(gomock.Any(), d.HTTPHosts.Router).Return(&protooperation.Operation{
+		repo.EXPECT().UpdateHTTPRouter(gomock.Any(), d.HTTPRouter.Router).Return(&protooperation.Operation{
 			Id:       "OP_1",
 			Metadata: fakeMeta(t, &apploadbalancer.UpdateHttpRouterMetadata{HttpRouterId: "HTTP_R_1"}),
 		}, nil)
@@ -314,7 +305,7 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 		require.NoError(t, err, "ReconcileHttpRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
-		assert.Equal(t, "HTTP_R_1", d.HTTPHosts.Router.Id)
+		assert.Equal(t, "HTTP_R_1", d.HTTPRouter.Router.Id)
 		assert.Equal(t, "HTTP_R_1", f.httpHandler.HttpRouterId)
 	})
 
@@ -325,7 +316,7 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
 		repo := mocks.NewMockRepository(ctrl)
-		repo.EXPECT().CreateHTTPRouter(gomock.Any(), d.HTTPHosts.Router).Return(&protooperation.Operation{
+		repo.EXPECT().CreateHTTPRouter(gomock.Any(), d.HTTPRouter.Router).Return(&protooperation.Operation{
 			Id:       "OP_1",
 			Metadata: fakeMeta(t, &apploadbalancer.CreateHttpRouterMetadata{HttpRouterId: "HTTP_R_1"}),
 		}, nil)
@@ -339,14 +330,14 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 		require.NoError(t, err, "ReconcileHttpRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
-		assert.Equal(t, "HTTP_R_1", d.HTTPHosts.Router.Id)
+		assert.Equal(t, "HTTP_R_1", d.HTTPRouter.Router.Id)
 		assert.Equal(t, "HTTP_R_1", f.httpHandler.HttpRouterId)
 	})
 
 	t.Run("delete", func(t *testing.T) {
 		f := newFixture()
 		d := data(f)
-		d.HTTPHosts = nil
+		d.HTTPRouter = nil
 		router := &apploadbalancer.HttpRouter{Id: "HTTP_R_1"}
 
 		ctrl := gomock.NewController(t)
@@ -369,7 +360,7 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
-		p.EXPECT().RouterNeedsUpdate(router, d.HTTPHosts.Router).Return(false)
+		p.EXPECT().RouterNeedsUpdate(router, d.HTTPRouter.Router).Return(false)
 		repo := mocks.NewMockRepository(ctrl)
 		repo.EXPECT().ListHTTPRouterOperations(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
 
@@ -383,7 +374,7 @@ func TestIngressGroupEngine_ReconcileHTTPRouter(t *testing.T) {
 		require.NoError(t, err, "ReconcileHttpRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
-		assert.Equal(t, "HTTP_R_1", d.HTTPHosts.Router.Id)
+		assert.Equal(t, "HTTP_R_1", d.HTTPRouter.Router.Id)
 		assert.Equal(t, "HTTP_R_1", f.httpHandler.HttpRouterId)
 	})
 }
@@ -396,10 +387,10 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
-		p.EXPECT().RouterNeedsUpdate(router, d.TLSHosts.Router).Return(true)
+		p.EXPECT().RouterNeedsUpdate(router, d.TLSRouter.Router).Return(true)
 
 		repo := mocks.NewMockRepository(ctrl)
-		repo.EXPECT().UpdateHTTPRouter(gomock.Any(), d.TLSHosts.Router).Return(&protooperation.Operation{
+		repo.EXPECT().UpdateHTTPRouter(gomock.Any(), d.TLSRouter.Router).Return(&protooperation.Operation{
 			Id:       "OP_1",
 			Metadata: fakeMeta(t, &apploadbalancer.UpdateHttpRouterMetadata{HttpRouterId: "HTTP_R_1"}),
 		}, nil)
@@ -414,7 +405,7 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 		require.NoError(t, err, "ReconcileTLSRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
-		assert.Equal(t, "HTTP_R_1", d.TLSHosts.Router.Id)
+		assert.Equal(t, "HTTP_R_1", d.TLSRouter.Router.Id)
 		assert.Equal(t, "HTTP_R_1", f.tlsHandler1.HttpRouterId)
 		assert.Equal(t, "HTTP_R_1", f.tlsHandler2.HttpRouterId)
 	})
@@ -426,7 +417,7 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
 		repo := mocks.NewMockRepository(ctrl)
-		repo.EXPECT().CreateHTTPRouter(gomock.Any(), d.TLSHosts.Router).Return(&protooperation.Operation{
+		repo.EXPECT().CreateHTTPRouter(gomock.Any(), d.TLSRouter.Router).Return(&protooperation.Operation{
 			Id:       "OP_1",
 			Metadata: fakeMeta(t, &apploadbalancer.CreateHttpRouterMetadata{HttpRouterId: "HTTP_R_1"}),
 		}, nil)
@@ -439,7 +430,7 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 		require.NoError(t, err, "ReconcileTLSRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
-		assert.Equal(t, "HTTP_R_1", d.TLSHosts.Router.Id)
+		assert.Equal(t, "HTTP_R_1", d.TLSRouter.Router.Id)
 		assert.Equal(t, "HTTP_R_1", f.tlsHandler1.HttpRouterId)
 		assert.Equal(t, "HTTP_R_1", f.tlsHandler2.HttpRouterId)
 	})
@@ -447,7 +438,7 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 	t.Run("delete", func(t *testing.T) {
 		f := newFixture()
 		d := data(f)
-		d.TLSHosts = nil
+		d.TLSRouter = nil
 		router := &apploadbalancer.HttpRouter{Id: "HTTP_R_1"}
 
 		ctrl := gomock.NewController(t)
@@ -470,7 +461,7 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		p := mocks.NewMockUpdatePredicates(ctrl)
-		p.EXPECT().RouterNeedsUpdate(router, d.TLSHosts.Router).Return(false)
+		p.EXPECT().RouterNeedsUpdate(router, d.TLSRouter.Router).Return(false)
 
 		repo := mocks.NewMockRepository(ctrl)
 		repo.EXPECT().ListHTTPRouterOperations(gomock.Any(), gomock.Any()).Return(nil, nil)
@@ -484,7 +475,7 @@ func TestIngressGroupEngine_ReconcileTLSRouter(t *testing.T) {
 		require.NoError(t, err, "ReconcileTLSRouter() error = %v)", err)
 		assert.Equal(t, "HTTP_R_1", ret.Active.Id)
 
-		assert.Equal(t, "HTTP_R_1", d.TLSHosts.Router.Id)
+		assert.Equal(t, "HTTP_R_1", d.TLSRouter.Router.Id)
 		assert.Equal(t, "HTTP_R_1", f.tlsHandler1.HttpRouterId)
 		assert.Equal(t, "HTTP_R_1", f.tlsHandler2.HttpRouterId)
 	})

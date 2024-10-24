@@ -68,8 +68,13 @@ func (n *Names) IsSNIForIngress(ns, name, tag, sniName string) bool {
 	return strings.HasPrefix(sniName, fmt.Sprintf("%s-%x", "sni", n.sha(fmt.Sprintf("%s-%s-%s", ns, name, tag))))
 }
 
+// Legacy naming for backward compatibility
 func (n *Names) RouteForPath(tag string, host, path, pathtype string) string {
 	return fmt.Sprintf("%s-%x", "route", n.sha(fmt.Sprintf("%s-%s-%s-%s", host, path, pathtype, tag)))
+}
+
+func (n *Names) RouteForPath2(tag string, host, path, pathtype string, i int) string {
+	return fmt.Sprintf("%s-%x-%d", "route", n.sha(fmt.Sprintf("%s-%s-%s-%s", host, path, pathtype, tag)), i)
 }
 
 func (n *Names) TargetGroup(name types.NamespacedName) string {

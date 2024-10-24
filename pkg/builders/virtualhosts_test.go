@@ -174,6 +174,27 @@ func TestVirtualHosts(t *testing.T) {
 				},
 			},
 		}
+		routeRedirect0 = &apploadbalancer.Route{
+			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1",
+			Route: &apploadbalancer.Route_Http{
+				Http: &apploadbalancer.HttpRoute{
+					Match: &apploadbalancer.HttpRouteMatch{
+						Path: &apploadbalancer.StringMatch{
+							Match: &apploadbalancer.StringMatch_ExactMatch{ExactMatch: "/tread/lightly"},
+						},
+					},
+					Action: &apploadbalancer.HttpRoute_Redirect{
+						Redirect: &apploadbalancer.RedirectAction{
+							ReplaceScheme: "https",
+							ReplacePort:   443,
+							Path:          nil,
+							RemoveQuery:   false,
+							ResponseCode:  apploadbalancer.RedirectAction_MOVED_PERMANENTLY,
+						},
+					},
+				},
+			},
+		}
 		route1 = &apploadbalancer.Route{
 			Name: "route-07544a934fcd54e50ab30eacf66de8ce94960357-1",
 			Route: &apploadbalancer.Route_Http{
@@ -412,19 +433,13 @@ func TestVirtualHosts(t *testing.T) {
 		redirectRules []*networking.IngressRule
 		routeOpts     RouteResolveOpts
 		vhOpts        VirtualHostResolveOpts
-		exp           VirtualHostData
+		exp           HTTPRouterData
 	}{
 		{
 			desc:          "OK",
 			rules:         []*networking.IngressRule{rule1, rule2, rule3},
 			redirectRules: []*networking.IngressRule{rule4},
-			exp: VirtualHostData{
-				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
-					{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        route1,
-					{Host: "example2.com", Path: "/saunter", PathType: string(networking.PathTypeExact)}:       route2,
-					{Host: "example1.com", Path: "/stagger", PathType: string(networking.PathTypeExact)}:       route3,
-				},
+			exp: HTTPRouterData{
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
 					Description: "router for k8s ingress with tag: " + tag,
@@ -450,12 +465,7 @@ func TestVirtualHosts(t *testing.T) {
 			rules:         []*networking.IngressRule{rule1, rule3},
 			redirectRules: []*networking.IngressRule{rule4},
 			routeOpts:     RouteResolveOpts{UseRegex: true},
-			exp: VirtualHostData{
-				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					{Host: "example1.com", Path: "/tread/lightly", PathType: PathTypeRegex}: regexroute0,
-					{Host: "example2.com", Path: "/saunter", PathType: PathTypeRegex}:       regexroute1,
-					{Host: "example1.com", Path: "/stagger", PathType: PathTypeRegex}:       regexroute2,
-				},
+			exp: HTTPRouterData{
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
 					Description: "router for k8s ingress with tag: " + tag,
@@ -481,13 +491,7 @@ func TestVirtualHosts(t *testing.T) {
 			rules:         []*networking.IngressRule{rule1, rule2, rule3},
 			redirectRules: []*networking.IngressRule{rule4},
 			routeOpts:     RouteResolveOpts{BackendType: GRPC},
-			exp: VirtualHostData{
-				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: routeGRPC0,
-					{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        routeGRPC1,
-					{Host: "example2.com", Path: "/saunter", PathType: string(networking.PathTypeExact)}:       routeGRPC2,
-					{Host: "example1.com", Path: "/stagger", PathType: string(networking.PathTypeExact)}:       routeGRPC3,
-				},
+			exp: HTTPRouterData{
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
 					Description: "router for k8s ingress with tag: " + tag,
@@ -529,11 +533,7 @@ func TestVirtualHosts(t *testing.T) {
 					},
 				},
 			},
-			exp: VirtualHostData{
-				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
-					{Host: "example1.com", Path: "/tread", PathType: string(networking.PathTypePrefix)}:        route1,
-				},
+			exp: HTTPRouterData{
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
 					Description: "router for k8s ingress with tag: " + tag,
@@ -590,13 +590,11 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		},
 		{
-			desc:          "redirect doesn't overwrite route action",
+			// Even with same host/path
+			desc:          "redirect add to route action",
 			rules:         []*networking.IngressRule{rule1},
 			redirectRules: []*networking.IngressRule{rule1},
-			exp: VirtualHostData{
-				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: route0,
-				},
+			exp: HTTPRouterData{
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
 					Description: "router for k8s ingress with tag: " + tag,
@@ -606,7 +604,7 @@ func TestVirtualHosts(t *testing.T) {
 						{
 							Name:      "vh-07544a934fcd54e50ab30eacf66de8ce94960357-0",
 							Authority: []string{"example1.com"},
-							Routes:    []*apploadbalancer.Route{route0},
+							Routes:    []*apploadbalancer.Route{route0, routeRedirect0},
 						},
 					},
 				},
@@ -615,11 +613,7 @@ func TestVirtualHosts(t *testing.T) {
 		{
 			desc:  "action for same host and path doesn't overwrite when path type different",
 			rules: []*networking.IngressRule{rule1, rule1OverwriteForPrefix},
-			exp: VirtualHostData{
-				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}:  route0,
-					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypePrefix)}: appendedRoute0,
-				},
+			exp: HTTPRouterData{
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
 					Description: "router for k8s ingress with tag: " + tag,
@@ -636,12 +630,9 @@ func TestVirtualHosts(t *testing.T) {
 			},
 		},
 		{
-			desc:  "action for same host and path overwriten when path type equal",
+			desc:  "action for same host and path doesn't overwriten when path type equal",
 			rules: []*networking.IngressRule{rule1, rule1OverwriteForExact},
-			exp: VirtualHostData{
-				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					{Host: "example1.com", Path: "/tread/lightly", PathType: string(networking.PathTypeExact)}: appendedRoute1,
-				},
+			exp: HTTPRouterData{
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
 					Description: "router for k8s ingress with tag: " + tag,
@@ -651,7 +642,7 @@ func TestVirtualHosts(t *testing.T) {
 						{
 							Name:      "vh-07544a934fcd54e50ab30eacf66de8ce94960357-0",
 							Authority: []string{"example1.com"},
-							Routes:    []*apploadbalancer.Route{appendedRoute1},
+							Routes:    []*apploadbalancer.Route{route0, appendedRoute1},
 						},
 					},
 				},
@@ -660,10 +651,7 @@ func TestVirtualHosts(t *testing.T) {
 		{
 			desc:  "empty path",
 			rules: []*networking.IngressRule{emptyPathRule},
-			exp: VirtualHostData{
-				HTTPRouteMap: map[HostAndPath]*apploadbalancer.Route{
-					{Host: "example1.com", Path: "", PathType: string(implementationSpecific)}: emptyPathRoute,
-				},
+			exp: HTTPRouterData{
 				Router: &apploadbalancer.HttpRouter{
 					Name:        "httprouter-07544a934fcd54e50ab30eacf66de8ce94960357",
 					Description: "router for k8s ingress with tag: " + tag,
@@ -695,8 +683,8 @@ func TestVirtualHosts(t *testing.T) {
 			}, nil).AnyTimes()
 
 			f.RestartVirtualHostIDGenerator()
-			b := f.VirtualHostBuilder(tag, bgFinder)
-			b.SetOpts(tc.routeOpts, tc.vhOpts, "ingress-namespace")
+			b := f.HTTPRouterBuilder(tag, bgFinder)
+			b.SetOpts(tc.vhOpts, tc.routeOpts, "ingress-namespace")
 			for _, r := range tc.rules {
 				for _, p := range r.HTTP.Paths {
 					hp, err := HTTPIngressPathToHostAndPath(r.Host, p, tc.routeOpts.UseRegex)
@@ -711,7 +699,7 @@ func TestVirtualHosts(t *testing.T) {
 					hp, err := HTTPIngressPathToHostAndPath(r.Host, p, tc.routeOpts.UseRegex)
 					require.NoError(t, err)
 
-					err = b.AddHTTPRedirect(hp)
+					err = b.AddRedirectToHTTPS(hp)
 					require.NoError(t, err)
 				}
 			}
@@ -734,15 +722,6 @@ func TestVirtualHosts(t *testing.T) {
 				},
 				"router aren't equals\nexp %v\ngot %v", tc.exp.Router, d.Router,
 			)
-			require.Equal(t, len(tc.exp.HTTPRouteMap), len(d.HTTPRouteMap))
-			for hp, expRoute := range tc.exp.HTTPRouteMap {
-				gotRoute, ok := d.HTTPRouteMap[hp]
-				require.True(t, ok)
-				comp := func() bool {
-					return routesEqualExceptName(expRoute, gotRoute)
-				}
-				assert.Condition(t, comp, "route for %s/%s mismatch\nexp %v\ngot %v", hp.Host, hp.Path, expRoute, gotRoute)
-			}
 
 			require.Equal(t, len(tc.exp.Router.VirtualHosts), len(d.Router.GetVirtualHosts()))
 			vhosts := make(map[string]int, len(tc.exp.Router.VirtualHosts))
