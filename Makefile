@@ -6,6 +6,11 @@ endif
 # Temporarily support only Yandex Container registry to avoid providing imagePullSecrets
 REGISTRY_HOST?=cr.yandex
 IMG_NAME?=yc-alb-ingress-controller
+
+ifdef IMG_PATH
+	IMG_NAME := $(IMG_PATH)/$(IMG_NAME)
+endif
+
 TAG?=$(shell git rev-parse --short HEAD)
 ifdef REGISTRY_ID
 	IMG = $(REGISTRY_HOST)/${REGISTRY_ID}/$(IMG_NAME):${TAG}
