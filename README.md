@@ -6,7 +6,7 @@ cp .env.example .env
 ```
 
 ### Deployment  
-
+We are testing magpie!
 #### Requirements
 
 - `docker`
