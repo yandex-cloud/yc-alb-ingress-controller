@@ -5,6 +5,7 @@
   ".gitignore":"opensource/yc-alb-ingress-controller/.gitignore",
   ".golangci.yaml":"opensource/yc-alb-ingress-controller/.golangci.yaml",
   "Dockerfile":"opensource/yc-alb-ingress-controller/Dockerfile",
+  "LICENSE":"opensource/yc-alb-ingress-controller/LICENSE",
   "Makefile":"opensource/yc-alb-ingress-controller/Makefile",
   "PROJECT":"opensource/yc-alb-ingress-controller/PROJECT",
   "README.md":"opensource/yc-alb-ingress-controller/README.md",
