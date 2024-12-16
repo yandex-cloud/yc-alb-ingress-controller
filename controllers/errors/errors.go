@@ -35,7 +35,7 @@ type Object interface {
 
 func HandleError(err error, log logr.Logger) (ctrl.Result, error) {
 	var outcome string
-	var st *status.Status
+	st := grpcStatus(err)
 	defer func() { logResult(log, outcome, err, st) }()
 
 	outcome = errorOutcome(err)

@@ -11,7 +11,7 @@ ifdef IMG_PATH
 	IMG_NAME := $(IMG_PATH)/$(IMG_NAME)
 endif
 
-TAG?=$(shell git rev-parse --short HEAD)
+TAG ?= test
 ifdef REGISTRY_ID
 	IMG = $(REGISTRY_HOST)/${REGISTRY_ID}/$(IMG_NAME):${TAG}
 endif
