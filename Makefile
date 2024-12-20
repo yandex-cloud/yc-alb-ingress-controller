@@ -109,7 +109,10 @@ docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
 
 .PHONY: docker-build-push
-docker-build-push: docker-build docker-push
+docker-build-push:
+	./hack/check_unreleased.sh
+	$(MAKE) docker-build
+	$(MAKE) docker-push
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
