@@ -1,4 +1,9 @@
 ## Ingress Controller  
+
+## Pull Requests
+
+Please ensure all changes are documented using Changie when submitting a PR.
+
 ### Environment
 Instead of explicitly passing variables to make targets, you can use .env files
 ```
