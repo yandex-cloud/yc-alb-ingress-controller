@@ -478,41 +478,61 @@ func (r RouteOptsResolver) Resolve(
 
 type VirtualHostOptsResolver struct{}
 
-func (r *VirtualHostOptsResolver) Resolve(removeHeader, renameHeader, appendHeader, replaceHeader, securityProfileID string) (VirtualHostResolveOpts, error) {
+func (r *VirtualHostOptsResolver) Resolve(
+	removeResponseHeader, renameResponseHeader, appendResponseHeader, replaceResponseHeader,
+	removeRequestHeader, renameRequestHeader, appendRequestHeader, replaceRequestHeader,
+	securityProfileID string,
+) (VirtualHostResolveOpts, error) {
 	var ret VirtualHostResolveOpts
 
-	var err error
-	ret.ModifyResponse.Append, err = k8s.ParseModifyHeadersFromAnnotationValue(appendHeader)
-	if err != nil {
-		return VirtualHostResolveOpts{}, err
-	}
+	resolveModifyHeader := func(removeHeader, renameHeader, appendHeader, replaceHeader string) (ModifyHeaderOpts, error) {
+		var err error
+		ret := ModifyHeaderOpts{}
 
-	ret.ModifyResponse.Rename, err = k8s.ParseModifyHeadersFromAnnotationValue(renameHeader)
-	if err != nil {
-		return VirtualHostResolveOpts{}, err
-	}
-
-	ret.ModifyResponse.Replace, err = k8s.ParseModifyHeadersFromAnnotationValue(replaceHeader)
-	if err != nil {
-		return VirtualHostResolveOpts{}, err
-	}
-
-	removeOpts, err := k8s.ParseModifyHeadersFromAnnotationValue(removeHeader)
-	if err != nil {
-		return VirtualHostResolveOpts{}, err
-	}
-
-	if len(removeOpts) > 0 {
-		ret.ModifyResponse.Remove = make(map[string]bool, len(removeOpts))
-		for name, value := range removeOpts {
-			if value != "true" && value != "false" {
-				return VirtualHostResolveOpts{}, fmt.Errorf("wrong modify-response-rewrite format, should be \"true\" or \"false\", got %s", value)
-			}
-
-			ret.ModifyResponse.Remove[name] = value == "true"
+		ret.Append, err = k8s.ParseModifyHeadersFromAnnotationValue(appendHeader)
+		if err != nil {
+			return ModifyHeaderOpts{}, err
 		}
+
+		ret.Rename, err = k8s.ParseModifyHeadersFromAnnotationValue(renameHeader)
+		if err != nil {
+			return ModifyHeaderOpts{}, err
+		}
+
+		ret.Replace, err = k8s.ParseModifyHeadersFromAnnotationValue(replaceHeader)
+		if err != nil {
+			return ModifyHeaderOpts{}, err
+		}
+
+		removeOpts, err := k8s.ParseModifyHeadersFromAnnotationValue(removeHeader)
+		if err != nil {
+			return ModifyHeaderOpts{}, err
+		}
+
+		if len(removeOpts) > 0 {
+			ret.Remove = make(map[string]bool, len(removeOpts))
+			for name, value := range removeOpts {
+				if value != "true" && value != "false" {
+					return ModifyHeaderOpts{}, fmt.Errorf("wrong modify-response-rewrite format, should be \"true\" or \"false\", got %s", value)
+				}
+
+				ret.Remove[name] = value == "true"
+			}
+		}
+
+		return ret, nil
 	}
 
+	var err error
+	ret.ModifyResponse, err = resolveModifyHeader(removeResponseHeader, renameResponseHeader, appendResponseHeader, replaceResponseHeader)
+	if err != nil {
+		return VirtualHostResolveOpts{}, err
+	}
+
+	ret.ModifyRequest, err = resolveModifyHeader(removeRequestHeader, renameRequestHeader, appendRequestHeader, replaceRequestHeader)
+	if err != nil {
+		return VirtualHostResolveOpts{}, err
+	}
 	ret.SecurityProfileID = securityProfileID
 	return ret, nil
 }

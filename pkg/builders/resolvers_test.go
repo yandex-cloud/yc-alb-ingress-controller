@@ -272,25 +272,51 @@ func TestSecurityGroupIDs(t *testing.T) {
 
 func TestVirtualHostOptsResolver_Resolve(t *testing.T) {
 	testData := []struct {
-		desc            string
-		removeHeader    string
-		replaceHeader   string
-		appendHeader    string
-		renameHeader    string
+		desc              string
+		removeRespHeader  string
+		replaceRespHeader string
+		appendRespHeader  string
+		renameRespHeader  string
+
+		removeReqHeader  string
+		replaceReqHeader string
+		appendReqHeader  string
+		renameReqHeader  string
+
 		securityProfile string
 		exp             VirtualHostResolveOpts
 		wantErr         bool
 	}{
 		{
-			desc:            "OK",
-			removeHeader:    "toRemove=true,notToRemove=false",
-			replaceHeader:   "toReplace=replace,toReplaceTwo=replace_two",
-			renameHeader:    "toRename=rename",
-			appendHeader:    "toAppend=append",
-			securityProfile: "security-profile-id",
+			desc:              "OK",
+			removeRespHeader:  "toRemove=true,notToRemove=false",
+			replaceRespHeader: "toReplace=replace,toReplaceTwo=replace_two",
+			renameRespHeader:  "toRename=rename",
+			appendRespHeader:  "toAppend=append",
+			removeReqHeader:   "toRemove=true,notToRemove=false",
+			replaceReqHeader:  "toReplace=replace,toReplaceTwo=replace_two",
+			renameReqHeader:   "toRename=rename",
+			appendReqHeader:   "toAppend=append",
+			securityProfile:   "security-profile-id",
 			exp: VirtualHostResolveOpts{
 				SecurityProfileID: "security-profile-id",
-				ModifyResponse: ModifyResponseOpts{
+				ModifyResponse: ModifyHeaderOpts{
+					Append: map[string]string{
+						"toAppend": "append",
+					},
+					Replace: map[string]string{
+						"toReplace":    "replace",
+						"toReplaceTwo": "replace_two",
+					},
+					Rename: map[string]string{
+						"toRename": "rename",
+					},
+					Remove: map[string]bool{
+						"toRemove":    true,
+						"notToRemove": false,
+					},
+				},
+				ModifyRequest: ModifyHeaderOpts{
 					Append: map[string]string{
 						"toAppend": "append",
 					},
@@ -315,17 +341,21 @@ func TestVirtualHostOptsResolver_Resolve(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			desc:         "bad remove format",
-			removeHeader: "toRemove=fals",
-			exp:          VirtualHostResolveOpts{},
-			wantErr:      true,
+			desc:             "bad remove format",
+			removeRespHeader: "toRemove=fals",
+			exp:              VirtualHostResolveOpts{},
+			wantErr:          true,
 		},
 	}
 	resolvers := NewResolvers(nil)
 	for _, tc := range testData {
 		r := resolvers.VirtualHostOpts()
 		t.Run(tc.desc, func(t *testing.T) {
-			ret, err := r.Resolve(tc.removeHeader, tc.renameHeader, tc.appendHeader, tc.replaceHeader, tc.securityProfile)
+			ret, err := r.Resolve(
+				tc.removeRespHeader, tc.renameRespHeader, tc.appendRespHeader, tc.replaceRespHeader,
+				tc.removeReqHeader, tc.renameReqHeader, tc.appendReqHeader, tc.replaceReqHeader,
+				tc.securityProfile,
+			)
 			require.True(t, (err != nil) == tc.wantErr, "Result() error = %v)", err)
 			if !tc.wantErr {
 				assert.Equal(t, tc.exp, ret)

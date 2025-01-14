@@ -49,6 +49,12 @@ const (
 	ModifyResponseHeaderRename  = ModifyResponseHeaderPrefix + "rename"
 	ModifyResponseHeaderRemove  = ModifyResponseHeaderPrefix + "remove"
 
+	ModifyRequestHeaderPrefix  = prefix + "/modify-header-request-"
+	ModifyRequestHeaderReplace = ModifyRequestHeaderPrefix + "replace"
+	ModifyRequestHeaderAppend  = ModifyRequestHeaderPrefix + "append"
+	ModifyRequestHeaderRename  = ModifyRequestHeaderPrefix + "rename"
+	ModifyRequestHeaderRemove  = ModifyRequestHeaderPrefix + "remove"
+
 	DirectResponsePrefix = prefix + "/direct-response."
 	RedirectPrefix       = prefix + "/redirect."
 

@@ -150,6 +150,10 @@ func (d *DefaultEngineBuilder) vhOpts(ing networking.Ingress) (builders.VirtualH
 		annotations[k8s.ModifyResponseHeaderRename],
 		annotations[k8s.ModifyResponseHeaderAppend],
 		annotations[k8s.ModifyResponseHeaderReplace],
+		annotations[k8s.ModifyRequestHeaderRemove],
+		annotations[k8s.ModifyRequestHeaderRename],
+		annotations[k8s.ModifyRequestHeaderAppend],
+		annotations[k8s.ModifyRequestHeaderReplace],
 		annotations[k8s.SecurityProfileID],
 	)
 }

@@ -516,7 +516,23 @@ func TestVirtualHosts(t *testing.T) {
 			desc:  "OK Modify headers",
 			rules: []*networking.IngressRule{rule1, rule2},
 			vhOpts: VirtualHostResolveOpts{
-				ModifyResponse: ModifyResponseOpts{
+				ModifyResponse: ModifyHeaderOpts{
+					Append: map[string]string{
+						"toAppend": "append",
+					},
+					Replace: map[string]string{
+						"toReplace":    "replace",
+						"toReplaceTwo": "replace_two",
+					},
+					Rename: map[string]string{
+						"toRename": "rename",
+					},
+					Remove: map[string]bool{
+						"toRemove":    true,
+						"notToRemove": false,
+					},
+				},
+				ModifyRequest: ModifyHeaderOpts{
 					Append: map[string]string{
 						"toAppend": "append",
 					},
@@ -546,6 +562,44 @@ func TestVirtualHosts(t *testing.T) {
 							Routes:    []*apploadbalancer.Route{route0, route1},
 							RouteOptions: &apploadbalancer.RouteOptions{
 								ModifyResponseHeaders: []*apploadbalancer.HeaderModification{
+									{
+										Name: "toRemove",
+										Operation: &apploadbalancer.HeaderModification_Remove{
+											Remove: true,
+										},
+									},
+									{
+										Name: "notToRemove",
+										Operation: &apploadbalancer.HeaderModification_Remove{
+											Remove: false,
+										},
+									},
+									{
+										Name: "toReplace",
+										Operation: &apploadbalancer.HeaderModification_Replace{
+											Replace: "replace",
+										},
+									},
+									{
+										Name: "toReplaceTwo",
+										Operation: &apploadbalancer.HeaderModification_Replace{
+											Replace: "replace_two",
+										},
+									},
+									{
+										Name: "toRename",
+										Operation: &apploadbalancer.HeaderModification_Rename{
+											Rename: "rename",
+										},
+									},
+									{
+										Name: "toAppend",
+										Operation: &apploadbalancer.HeaderModification_Append{
+											Append: "append",
+										},
+									},
+								},
+								ModifyRequestHeaders: []*apploadbalancer.HeaderModification{
 									{
 										Name: "toRemove",
 										Operation: &apploadbalancer.HeaderModification_Remove{

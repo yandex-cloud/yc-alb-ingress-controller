@@ -3,6 +3,7 @@
   ".":"opensource/yc-alb-ingress-controller",
   ".changes/header.tpl.md":"opensource/yc-alb-ingress-controller/.changes/header.tpl.md",
   ".changes/unreleased/.gitkeep":"opensource/yc-alb-ingress-controller/.changes/unreleased/.gitkeep",
+  ".changes/unreleased/Added-20250114-145226.yaml":"opensource/yc-alb-ingress-controller/.changes/unreleased/Added-20250114-145226.yaml",
   ".changes/v0.2.15.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.15.md",
   ".changie.yaml":"opensource/yc-alb-ingress-controller/.changie.yaml",
   ".env.example":"opensource/yc-alb-ingress-controller/.env.example",

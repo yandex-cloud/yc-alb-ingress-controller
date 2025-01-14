@@ -47,12 +47,13 @@ type VirtualHost struct {
 }
 
 type VirtualHostResolveOpts struct {
-	ModifyResponse ModifyResponseOpts
+	ModifyResponse ModifyHeaderOpts
+	ModifyRequest  ModifyHeaderOpts
 
 	SecurityProfileID string
 }
 
-type ModifyResponseOpts struct {
+type ModifyHeaderOpts struct {
 	Remove  map[string]bool
 	Rename  map[string]string
 	Replace map[string]string
@@ -178,7 +179,7 @@ func (b *HTTPRouterBuilder) Build() *HTTPRouterData {
 			Name:         b.names.VirtualHostForID(b.tag, b.nextVHID.Next()),
 			Authority:    []string{vh.host},
 			Routes:       vh.routes,
-			RouteOptions: buildRouteOpts(vh.opts.ModifyResponse, vh.opts.SecurityProfileID),
+			RouteOptions: buildRouteOpts(vh.opts.ModifyResponse, vh.opts.ModifyRequest, vh.opts.SecurityProfileID),
 		}
 	}
 
@@ -295,32 +296,49 @@ func mergeVHOpts(opts1, opts2 VirtualHostResolveOpts) (VirtualHostResolveOpts, e
 
 	opts.SecurityProfileID = cmp.Or(sID1, sID2)
 
+	mergeModifyHeader := func(opts1, opts2 ModifyHeaderOpts) (ModifyHeaderOpts, error) {
+		opts := ModifyHeaderOpts{}
+
+		var err error
+		opts.Append, err = algo.MapMerge(opts1.Append, opts2.Append)
+		if err != nil {
+			return opts, fmt.Errorf("conflict with vh modify response append: %w", err)
+		}
+
+		opts.Remove, err = algo.MapMerge(opts1.Remove, opts2.Remove)
+		if err != nil {
+			return opts, fmt.Errorf("conflict with vh modify response remove: %w", err)
+		}
+
+		opts.Rename, err = algo.MapMerge(opts1.Rename, opts2.Rename)
+		if err != nil {
+			return opts, fmt.Errorf("conflict with vh modify response rename: %w", err)
+		}
+
+		opts.Replace, err = algo.MapMerge(opts1.Replace, opts2.Replace)
+		if err != nil {
+			return opts, fmt.Errorf("conflict with vh modify response replace: %w", err)
+		}
+
+		return opts, nil
+	}
+
 	var err error
-	opts.ModifyResponse.Append, err = algo.MapMerge(opts1.ModifyResponse.Append, opts2.ModifyResponse.Append)
+	opts.ModifyResponse, err = mergeModifyHeader(opts1.ModifyResponse, opts2.ModifyResponse)
 	if err != nil {
-		return opts, fmt.Errorf("conflict with vh modify response append: %w", err)
+		return opts, fmt.Errorf("can't merge vh modify response: %w", err)
 	}
 
-	opts.ModifyResponse.Remove, err = algo.MapMerge(opts1.ModifyResponse.Remove, opts2.ModifyResponse.Remove)
+	opts.ModifyRequest, err = mergeModifyHeader(opts1.ModifyRequest, opts2.ModifyRequest)
 	if err != nil {
-		return opts, fmt.Errorf("conflict with vh modify response remove: %w", err)
-	}
-
-	opts.ModifyResponse.Rename, err = algo.MapMerge(opts1.ModifyResponse.Rename, opts2.ModifyResponse.Rename)
-	if err != nil {
-		return opts, fmt.Errorf("conflict with vh modify response rename: %w", err)
-	}
-
-	opts.ModifyResponse.Replace, err = algo.MapMerge(opts1.ModifyResponse.Replace, opts2.ModifyResponse.Replace)
-	if err != nil {
-		return opts, fmt.Errorf("conflict with vh modify response replace: %w", err)
+		return opts, fmt.Errorf("can't merge vh modify request: %w", err)
 	}
 
 	return opts, nil
 }
 
-func buildModifyHeaderOpts(modifyResponse ModifyResponseOpts) []*apploadbalancer.HeaderModification {
-	expLen := len(modifyResponse.Append) + len(modifyResponse.Rename) + len(modifyResponse.Remove) + len(modifyResponse.Replace)
+func buildModifyHeaderOpts(modifyHeader ModifyHeaderOpts) []*apploadbalancer.HeaderModification {
+	expLen := len(modifyHeader.Append) + len(modifyHeader.Rename) + len(modifyHeader.Remove) + len(modifyHeader.Replace)
 	if expLen == 0 {
 		return nil
 	}
@@ -329,7 +347,7 @@ func buildModifyHeaderOpts(modifyResponse ModifyResponseOpts) []*apploadbalancer
 		[]*apploadbalancer.HeaderModification, 0, expLen,
 	)
 
-	for name, remove := range modifyResponse.Remove {
+	for name, remove := range modifyHeader.Remove {
 		modifyResponseHeaders = append(modifyResponseHeaders, &apploadbalancer.HeaderModification{
 			Name: name,
 			Operation: &apploadbalancer.HeaderModification_Remove{
@@ -338,7 +356,7 @@ func buildModifyHeaderOpts(modifyResponse ModifyResponseOpts) []*apploadbalancer
 		})
 	}
 
-	for name, replace := range modifyResponse.Replace {
+	for name, replace := range modifyHeader.Replace {
 		modifyResponseHeaders = append(modifyResponseHeaders, &apploadbalancer.HeaderModification{
 			Name: name,
 			Operation: &apploadbalancer.HeaderModification_Replace{
@@ -347,7 +365,7 @@ func buildModifyHeaderOpts(modifyResponse ModifyResponseOpts) []*apploadbalancer
 		})
 	}
 
-	for name, rename := range modifyResponse.Rename {
+	for name, rename := range modifyHeader.Rename {
 		modifyResponseHeaders = append(modifyResponseHeaders, &apploadbalancer.HeaderModification{
 			Name: name,
 			Operation: &apploadbalancer.HeaderModification_Rename{
@@ -356,7 +374,7 @@ func buildModifyHeaderOpts(modifyResponse ModifyResponseOpts) []*apploadbalancer
 		})
 	}
 
-	for name, value := range modifyResponse.Append {
+	for name, value := range modifyHeader.Append {
 		modifyResponseHeaders = append(modifyResponseHeaders, &apploadbalancer.HeaderModification{
 			Name: name,
 			Operation: &apploadbalancer.HeaderModification_Append{
@@ -367,14 +385,16 @@ func buildModifyHeaderOpts(modifyResponse ModifyResponseOpts) []*apploadbalancer
 	return modifyResponseHeaders
 }
 
-func buildRouteOpts(modifyResponseOpts ModifyResponseOpts, securityProfileID string) *apploadbalancer.RouteOptions {
+func buildRouteOpts(modifyResponseOpts, modifyRequestOpts ModifyHeaderOpts, securityProfileID string) *apploadbalancer.RouteOptions {
 	modifyResponseHeaders := buildModifyHeaderOpts(modifyResponseOpts)
+	modifyRequestHeaders := buildModifyHeaderOpts(modifyRequestOpts)
 	if len(modifyResponseHeaders) == 0 && securityProfileID == "" {
 		return nil
 	}
 
 	return &apploadbalancer.RouteOptions{
 		ModifyResponseHeaders: modifyResponseHeaders,
+		ModifyRequestHeaders:  modifyRequestHeaders,
 		SecurityProfileId:     securityProfileID,
 	}
 }
@@ -400,11 +420,17 @@ func matchForPath(hp HostAndPath) *apploadbalancer.StringMatch {
 func (opts VirtualHostResolveOpts) Clone() VirtualHostResolveOpts {
 	return VirtualHostResolveOpts{
 		SecurityProfileID: opts.SecurityProfileID,
-		ModifyResponse: ModifyResponseOpts{
+		ModifyResponse: ModifyHeaderOpts{
 			Append:  maps.Clone(opts.ModifyResponse.Append),
 			Remove:  maps.Clone(opts.ModifyResponse.Remove),
 			Replace: maps.Clone(opts.ModifyResponse.Replace),
 			Rename:  maps.Clone(opts.ModifyResponse.Rename),
+		},
+		ModifyRequest: ModifyHeaderOpts{
+			Append:  maps.Clone(opts.ModifyRequest.Append),
+			Remove:  maps.Clone(opts.ModifyRequest.Remove),
+			Replace: maps.Clone(opts.ModifyRequest.Replace),
+			Rename:  maps.Clone(opts.ModifyRequest.Rename),
 		},
 	}
 }
