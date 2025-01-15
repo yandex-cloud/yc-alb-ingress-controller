@@ -170,6 +170,7 @@ func (r *Repository) CreateLoadBalancer(ctx context.Context, balancer *apploadba
 		NetworkId:        balancer.NetworkId,
 		ListenerSpecs:    listenerSpecs(balancer.Listeners),
 		AllocationPolicy: balancer.AllocationPolicy,
+		AutoScalePolicy:  balancer.AutoScalePolicy,
 		SecurityGroupIds: balancer.SecurityGroupIds,
 		LogOptions:       balancer.LogOptions,
 	})
@@ -241,9 +242,10 @@ func (r *Repository) UpdateLoadBalancer(ctx context.Context, balancer *apploadba
 		AllocationPolicy: balancer.AllocationPolicy,
 		SecurityGroupIds: balancer.SecurityGroupIds,
 		LogOptions:       balancer.LogOptions,
+		AutoScalePolicy:  balancer.AutoScalePolicy,
 
 		UpdateMask: &fieldmaskpb.FieldMask{
-			Paths: []string{"listener_specs", "allocation_policy", "security_group_ids", "log_options"},
+			Paths: []string{"listener_specs", "allocation_policy", "security_group_ids", "log_options", "auto_scale_policy"},
 		},
 	})
 }

@@ -14,6 +14,10 @@ const (
 	SecurityProfileID = prefix + "/security-profile-id"
 	Subnets           = prefix + "/subnets"
 
+	AutoscalingPrefix      = prefix + "/autoscale-"
+	AutoscalingMinZoneSize = AutoscalingPrefix + "min-zone-size"
+	AutoscalingMaxSize     = AutoscalingPrefix + "max-size"
+
 	ExternalIPv4Address = prefix + "/external-ipv4-address"
 	ExternalIPv6Address = prefix + "/external-ipv6-address"
 	InternalIPv4Address = prefix + "/internal-ipv4-address"

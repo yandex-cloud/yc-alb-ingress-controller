@@ -46,6 +46,10 @@ func (r *Resolvers) SecurityGroups() *SecurityGroupIDsResolver {
 	return &SecurityGroupIDsResolver{ids: make(map[string]int)}
 }
 
+func (r *Resolvers) AutoScalePolicy() *AutoScalePolicyResolver {
+	return &AutoScalePolicyResolver{}
+}
+
 func (r *Resolvers) RouteOpts() RouteOptsResolver {
 	return RouteOptsResolver{}
 }
@@ -418,6 +422,49 @@ func (r *SecurityGroupIDsResolver) Result() (ids []string) {
 		}
 	}
 	return
+}
+
+type AutoScalePolicyResolver struct {
+	MinZoneSize *int64
+	MaxSize *int64
+}
+
+func (r *AutoScalePolicyResolver) Resolve(minZoneSize, maxSize string) error {
+	if minZoneSize != "" {
+		m, err := strconv.ParseInt(minZoneSize, 10, 64)
+		if err != nil {
+			return err
+		}
+		if r.MinZoneSize != nil && *r.MinZoneSize != m {
+			return fmt.Errorf("different values provided for min size: %d, %d", *r.MinZoneSize, m)
+		}
+		r.MinZoneSize = &m
+	}
+	if maxSize != "" {
+		m, err := strconv.ParseInt(maxSize, 10, 64)
+		if err != nil {
+			return err
+		}
+		if r.MaxSize != nil && *r.MaxSize != m {
+			return fmt.Errorf("different values provided for max size: %d, %d", *r.MaxSize, m)
+		}
+		r.MaxSize = &m
+	}
+	return nil
+}
+
+func (r *AutoScalePolicyResolver) Result() *apploadbalancer.AutoScalePolicy {
+	if r.MinZoneSize == nil && r.MaxSize == nil {
+		return nil
+	}
+	p := &apploadbalancer.AutoScalePolicy{}
+	if r.MinZoneSize != nil {
+		p.MinZoneSize = *r.MinZoneSize
+	}
+	if r.MaxSize != nil {
+		p.MaxSize = *r.MaxSize
+	}
+	return p
 }
 
 type RouteOptsResolver struct{}

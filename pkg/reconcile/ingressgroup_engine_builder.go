@@ -66,12 +66,17 @@ func (d *DefaultEngineBuilder) Build(ctx context.Context, g *k8s.IngressGroup, s
 		return nil, fmt.Errorf("failed to build addresses: %w", err)
 	}
 	securityGroupIDs := d.securityGroupIDs(g)
+	autoScalePolicy, err := d.autoScalePolicy(g)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build auto scale policy: %w", err)
+	}
 
 	opts := builders.Options{
 		BalancerOptions: builders.BalancerOptions{
 			NetworkID:        networkID,
 			Locations:        locations,
 			SecurityGroupIDs: securityGroupIDs,
+			AutoScalePolicy:  autoScalePolicy,
 		},
 		ListenerOptions: builders.ListenerOptions{
 			Addresses: addresses,
@@ -126,6 +131,17 @@ func (d *DefaultEngineBuilder) securityGroupIDs(g *k8s.IngressGroup) []string {
 		resolver.Resolve(ing.GetAnnotations()[k8s.SecurityGroups])
 	}
 	return resolver.Result()
+}
+
+func (d *DefaultEngineBuilder) autoScalePolicy(g *k8s.IngressGroup) (*apploadbalancer.AutoScalePolicy, error) {
+	resolver := d.resolvers.AutoScalePolicy()
+	for _, ing := range g.Items {
+		err := resolver.Resolve(ing.GetAnnotations()[k8s.AutoscalingMinZoneSize], ing.GetAnnotations()[k8s.AutoscalingMaxSize])
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve auto scale policy: %w", err)
+		}
+	}
+	return resolver.Result(), nil
 }
 
 func (d *DefaultEngineBuilder) routeOpts(ing networking.Ingress) (builders.RouteResolveOpts, error) {

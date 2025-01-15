@@ -45,10 +45,15 @@ func (*UpdatePredicates) BalancerNeedsUpdate(alb, exp *apploadbalancer.LoadBalan
 	return locationsNeedUpdate(alb.AllocationPolicy.Locations, exp.AllocationPolicy.Locations) ||
 		securityGroupsNeedUpdate(alb.SecurityGroupIds, exp.SecurityGroupIds) ||
 		listenersNeedUpdate(alb.Listeners, exp.Listeners) ||
-		logOptionsNeedUpdate(alb.LogOptions, exp.LogOptions)
+		logOptionsNeedUpdate(alb.LogOptions, exp.LogOptions) ||
+		autoscaleNeedUpdate(alb.AutoScalePolicy, exp.AutoScalePolicy)
 }
 
 func logOptionsNeedUpdate(act, exp *apploadbalancer.LogOptions) bool {
+	return !proto.Equal(act, exp)
+}
+
+func autoscaleNeedUpdate(act, exp *apploadbalancer.AutoScalePolicy) bool {
 	return !proto.Equal(act, exp)
 }
 

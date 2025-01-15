@@ -270,6 +270,69 @@ func TestSecurityGroupIDs(t *testing.T) {
 	}
 }
 
+func TestAutoScalePolicy(t *testing.T) {
+	testData := []struct {
+		desc     string
+		minZoneSizes []string
+		maxSizes []string
+		exp      *apploadbalancer.AutoScalePolicy
+		expErr   bool
+	}{
+		{
+			desc:     "OK",
+			minZoneSizes: []string{"1", ""},
+			maxSizes: []string{"3", ""},
+			exp: &apploadbalancer.AutoScalePolicy{
+				MinZoneSize: 1,
+				MaxSize:     3,
+			},
+		},
+		{
+			desc:     "multiple OK",
+			minZoneSizes: []string{"1", "1", ""},
+			maxSizes: []string{"", "", ""},
+			exp: &apploadbalancer.AutoScalePolicy{
+				MinZoneSize: 1,
+			},
+		},
+		{
+			desc:     "multiple conflict",
+			minZoneSizes: []string{"1", "2", ""},
+			maxSizes: []string{"", "4", ""},
+			exp:      nil,
+			expErr:   true,
+		},
+		{
+			desc:     "OK empty",
+			minZoneSizes: []string{"", ""},
+			maxSizes: []string{"", ""},
+			exp:      nil,
+		},
+	}
+	resolvers := &Resolvers{}
+	for _, tc := range testData {
+		t.Run(tc.desc, func(t *testing.T) {
+			r := resolvers.AutoScalePolicy()
+			assert.Equal(t, len(tc.minZoneSizes), len(tc.maxSizes))
+			var err error
+			for i := range tc.minZoneSizes {
+				err = r.Resolve(tc.minZoneSizes[i], tc.maxSizes[i])
+				if err != nil {
+					break
+				}
+			}
+			if tc.expErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+
+			ret := r.Result()
+			assert.Equal(t, tc.exp, ret)
+		})
+	}
+}
+
 func TestVirtualHostOptsResolver_Resolve(t *testing.T) {
 	testData := []struct {
 		desc              string

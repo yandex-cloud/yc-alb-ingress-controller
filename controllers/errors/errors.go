@@ -56,6 +56,8 @@ func HandleErrorWithObject(err error, obj Object, recorder record.EventRecorder)
 	switch outcome {
 	case DONE:
 		recorder.Eventf(obj, core.EventTypeNormal, "ReconciliationComplete", "Reconciliation complete for %s", obj.GetName())
+	case REQUEUE:
+		recorder.Eventf(obj, core.EventTypeNormal, "ReconciliationRequeue", "Reconciliation requeue for %s, reason: %s", obj.GetName(), err.Error())
 	case FAIL:
 		recorder.Eventf(obj, core.EventTypeWarning, "ReconciliationFailed", "Reconciliation failed for %s: %s", obj.GetName(), err.Error())
 	}

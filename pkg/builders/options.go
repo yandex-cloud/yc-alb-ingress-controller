@@ -6,6 +6,7 @@ type BalancerOptions struct {
 	NetworkID        string
 	Locations        []*apploadbalancer.Location
 	SecurityGroupIDs []string
+	AutoScalePolicy  *apploadbalancer.AutoScalePolicy
 }
 
 type ListenerOptions struct {

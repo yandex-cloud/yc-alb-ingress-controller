@@ -26,6 +26,7 @@ func (b *BalancerBuilder) Build(handler *apploadbalancer.HttpHandler, matches []
 		NetworkId:        opts.NetworkID,
 		Listeners:        b.listenerSpecs(handler, matches, b.tag, opts),
 		AllocationPolicy: &apploadbalancer.AllocationPolicy{Locations: opts.Locations},
+		AutoScalePolicy:  opts.AutoScalePolicy,
 		SecurityGroupIds: opts.SecurityGroupIDs,
 		LogOptions:       logOpts,
 	}
