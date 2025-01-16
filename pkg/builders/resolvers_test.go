@@ -272,41 +272,41 @@ func TestSecurityGroupIDs(t *testing.T) {
 
 func TestAutoScalePolicy(t *testing.T) {
 	testData := []struct {
-		desc     string
+		desc         string
 		minZoneSizes []string
-		maxSizes []string
-		exp      *apploadbalancer.AutoScalePolicy
-		expErr   bool
+		maxSizes     []string
+		exp          *apploadbalancer.AutoScalePolicy
+		expErr       bool
 	}{
 		{
-			desc:     "OK",
+			desc:         "OK",
 			minZoneSizes: []string{"1", ""},
-			maxSizes: []string{"3", ""},
+			maxSizes:     []string{"3", ""},
 			exp: &apploadbalancer.AutoScalePolicy{
 				MinZoneSize: 1,
 				MaxSize:     3,
 			},
 		},
 		{
-			desc:     "multiple OK",
+			desc:         "multiple OK",
 			minZoneSizes: []string{"1", "1", ""},
-			maxSizes: []string{"", "", ""},
+			maxSizes:     []string{"", "", ""},
 			exp: &apploadbalancer.AutoScalePolicy{
 				MinZoneSize: 1,
 			},
 		},
 		{
-			desc:     "multiple conflict",
+			desc:         "multiple conflict",
 			minZoneSizes: []string{"1", "2", ""},
-			maxSizes: []string{"", "4", ""},
-			exp:      nil,
-			expErr:   true,
+			maxSizes:     []string{"", "4", ""},
+			exp:          nil,
+			expErr:       true,
 		},
 		{
-			desc:     "OK empty",
+			desc:         "OK empty",
 			minZoneSizes: []string{"", ""},
-			maxSizes: []string{"", ""},
-			exp:      nil,
+			maxSizes:     []string{"", ""},
+			exp:          nil,
 		},
 	}
 	resolvers := &Resolvers{}

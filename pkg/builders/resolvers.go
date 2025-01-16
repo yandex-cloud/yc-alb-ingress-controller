@@ -426,7 +426,7 @@ func (r *SecurityGroupIDsResolver) Result() (ids []string) {
 
 type AutoScalePolicyResolver struct {
 	MinZoneSize *int64
-	MaxSize *int64
+	MaxSize     *int64
 }
 
 func (r *AutoScalePolicyResolver) Resolve(minZoneSize, maxSize string) error {
