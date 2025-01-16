@@ -36,7 +36,10 @@ const (
 	UseRegex     = prefix + "/use-regex"
 	OrderInGroup = prefix + "/group-order"
 
-	BalancingMode = prefix + "/balancing-mode"
+	BalancingPrefix               = prefix + "/balancing-"
+	BalancingMode                 = BalancingPrefix + "mode"
+	BalancingPanicThreshold       = BalancingPrefix + "panic-threshold"
+	BalancingLocalityAwareRouting = BalancingPrefix + "locality-aware-routing"
 
 	SessionAffinityPrefix     = prefix + "/session-affinity-"
 	SessionAffinityHeader     = SessionAffinityPrefix + "header"

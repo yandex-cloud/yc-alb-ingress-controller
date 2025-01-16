@@ -279,28 +279,30 @@ func parseHttpBGSessionAffinity(sa *v1alpha1.SessionAffinity) apploadbalancer.Ht
 	return nil
 }
 
-func parseBalancingConfigFromString(mode string) (*apploadbalancer.LoadBalancingConfig, error) {
-	if mode == "" {
+func parseBalancingConfigFromStruct(lbc LoadBalancingConfig) (*apploadbalancer.LoadBalancingConfig, error) {
+	if lbc.Mode == "" {
 		return nil, nil
 	}
-	return parseBalancingConfig(mode)
+	return parseBalancingConfig(lbc.Mode, lbc.PanicThreshold, lbc.LocalityAwareRouting)
 }
 
 func parseBalancingConfigFromCRDConfig(config *v1alpha1.LoadBalancingConfig) (*apploadbalancer.LoadBalancingConfig, error) {
 	if config == nil {
 		return nil, nil
 	}
-	return parseBalancingConfig(config.BalancerMode)
+	return parseBalancingConfig(config.BalancerMode, config.PanicThreshold, config.LocalityAwareRouting)
 }
 
-func parseBalancingConfig(mode string) (*apploadbalancer.LoadBalancingConfig, error) {
+func parseBalancingConfig(mode string, panicThreshold int64, localityAwareRouting int64) (*apploadbalancer.LoadBalancingConfig, error) {
 	balancingMode, ok := apploadbalancer.LoadBalancingMode_value[mode]
 	if !ok {
 		return nil, fmt.Errorf("unknown balancing mode: %s", mode)
 	}
 
 	return &apploadbalancer.LoadBalancingConfig{
-		Mode: apploadbalancer.LoadBalancingMode(balancingMode),
+		Mode:                        apploadbalancer.LoadBalancingMode(balancingMode),
+		PanicThreshold:              panicThreshold,
+		LocalityAwareRoutingPercent: localityAwareRouting,
 	}, nil
 }
 

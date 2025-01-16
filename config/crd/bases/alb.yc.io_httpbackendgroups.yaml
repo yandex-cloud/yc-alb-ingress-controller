@@ -107,8 +107,18 @@ spec:
                         balancerMode:
                           default: RANDOM
                           type: string
+                        localityAwareRouting:
+                          default: 0
+                          format: int64
+                          type: integer
+                        panicThreshold:
+                          default: 0
+                          format: int64
+                          type: integer
                       required:
                       - balancerMode
+                      - localityAwareRouting
+                      - panicThreshold
                       type: object
                     name:
                       type: string

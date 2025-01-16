@@ -196,10 +196,26 @@ func parseHealthChecks(healthChecks string) ([]*apploadbalancer.HealthCheck, err
 }
 
 func (r *BackendOptsResolver) Resolve(
-	protocol, balancingMode, transportSecurity, affinityHeader, affinityCookie, affinityConnection, healthChecks string,
+	protocol, balancingMode, balancingPanicThreshold, balancingLocalityAwareRouting,
+	transportSecurity, affinityHeader, affinityCookie, affinityConnection, healthChecks string,
 ) (BackendResolveOpts, error) {
-	ret := BackendResolveOpts{
-		BalancingMode: balancingMode,
+	ret := BackendResolveOpts{}
+
+	ret.LoadBalancingConfig.Mode = balancingMode
+
+	var err error
+	if balancingPanicThreshold != "" {
+		ret.LoadBalancingConfig.PanicThreshold, err = strconv.ParseInt(balancingPanicThreshold, 10, 64)
+		if err != nil {
+			return BackendResolveOpts{}, fmt.Errorf("balancing-panic-threshold must be number value, found: %s", balancingPanicThreshold)
+		}
+	}
+
+	if balancingLocalityAwareRouting != "" {
+		ret.LoadBalancingConfig.LocalityAwareRouting, err = strconv.ParseInt(balancingLocalityAwareRouting, 10, 64)
+		if err != nil {
+			return BackendResolveOpts{}, fmt.Errorf("balancing-locality-aware-routing must be number value, found: %s", balancingLocalityAwareRouting)
+		}
 	}
 
 	if transportSecurity == "tls" {
@@ -222,7 +238,6 @@ func (r *BackendOptsResolver) Resolve(
 		return BackendResolveOpts{}, fmt.Errorf("no more than one session affinity type must be specified")
 	}
 
-	var err error
 	if affinityCookie != "" {
 		ret.affinityOpts.cookie, err = parseCookieSessionAffinity(affinityCookie)
 		if err != nil {

@@ -84,10 +84,16 @@ type BackendResolveOpts struct {
 	Secure      bool
 	UseRegex    bool
 
-	BalancingMode string
+	LoadBalancingConfig LoadBalancingConfig
 
 	healthChecks []*apploadbalancer.HealthCheck
 	affinityOpts SessionAffinityOpts
+}
+
+type LoadBalancingConfig struct {
+	Mode                 string
+	PanicThreshold       int64
+	LocalityAwareRouting int64
 }
 
 type TargetGroupFinder interface {
@@ -125,7 +131,7 @@ func (b *BackendGroupForSvcBuilder) BuildForSvc(svc *core.Service, ings []networ
 }
 
 func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []core.ServicePort, tgID string, opts BackendResolveOpts) (*apploadbalancer.BackendGroup, error) {
-	balancingConfig, err := parseBalancingConfigFromString(opts.BalancingMode)
+	balancingConfig, err := parseBalancingConfigFromStruct(opts.LoadBalancingConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse balancing config: %w", err)
 	}
@@ -197,6 +203,22 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 		}
 	}
 
+	balancingPanicThreshold, ok := annotations[k8s.BalancingPanicThreshold]
+	if !ok {
+		balancingPanicThreshold, err = parseSvcAnnotationFromIngs(ings, k8s.BalancingPanicThreshold)
+		if err != nil {
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse balancing panic threshold: %w", err)
+		}
+	}
+
+	balancingLocalityAwareRouting, ok := annotations[k8s.BalancingLocalityAwareRouting]
+	if !ok {
+		balancingLocalityAwareRouting, err = parseSvcAnnotationFromIngs(ings, k8s.BalancingLocalityAwareRouting)
+		if err != nil {
+			return BackendResolveOpts{}, fmt.Errorf("failed to parse locality aware routing: %w", err)
+		}
+	}
+
 	transportSecurity, ok := annotations[k8s.TransportSecurity]
 	if !ok {
 		transportSecurity, err = parseSvcAnnotationFromIngs(ings, k8s.TransportSecurity)
@@ -238,8 +260,8 @@ func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networ
 	}
 
 	opts, err := r.Resolve(
-		protocol, balancingMode, transportSecurity,
-		saHeader, saCookie, saConnection, healthChecks,
+		protocol, balancingMode, balancingPanicThreshold, balancingLocalityAwareRouting,
+		transportSecurity, saHeader, saCookie, saConnection, healthChecks,
 	)
 	if err != nil {
 		return BackendResolveOpts{}, fmt.Errorf("failed to resolve backend opts: %w", err)

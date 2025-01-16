@@ -523,7 +523,8 @@ func TestGrpcBackendGroup_BuildForCrd(t *testing.T) {
 								},
 							},
 							LoadBalancingConfig: &v1alpha1.LoadBalancingConfig{
-								BalancerMode: "MAGLEV_HASH",
+								BalancerMode:   "MAGLEV_HASH",
+								PanicThreshold: 10,
 							},
 						},
 					},
@@ -552,7 +553,8 @@ func TestGrpcBackendGroup_BuildForCrd(t *testing.T) {
 								},
 								Healthchecks: defaultHealthChecks,
 								LoadBalancingConfig: &apploadbalancer.LoadBalancingConfig{
-									Mode: apploadbalancer.LoadBalancingMode_MAGLEV_HASH,
+									Mode:           apploadbalancer.LoadBalancingMode_MAGLEV_HASH,
+									PanicThreshold: 10,
 								},
 							},
 						},

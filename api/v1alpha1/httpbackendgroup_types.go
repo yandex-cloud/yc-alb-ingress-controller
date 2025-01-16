@@ -40,6 +40,10 @@ type HttpBackend struct { // nolint:revive
 type LoadBalancingConfig struct {
 	//+kubebuilder:default=RANDOM
 	BalancerMode string `json:"balancerMode"`
+	//+kubebuilder:default=0
+	PanicThreshold int64 `json:"panicThreshold"`
+	//+kubebuilder:default=0
+	LocalityAwareRouting int64 `json:"localityAwareRouting"`
 }
 
 // ServiceBackendPort is the service port being referenced. See k8s.io/api/networking/v1/ServiceBackendPort

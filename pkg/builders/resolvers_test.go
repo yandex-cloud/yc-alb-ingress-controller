@@ -99,7 +99,7 @@ func TestAddressResolver(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			r := resolvers.Addresses(AddressParams{"abcdxxxxdefault"})
 			var err error
-			for i := 0; i < len(tc.addrs) && err == nil; i++ {
+			for i := 0; i < len(tc.addrs); i++ {
 				r.Resolve(tc.addrs[i])
 			}
 
@@ -526,27 +526,35 @@ func TestBackendOptsResolver(t *testing.T) {
 	}
 
 	testData := []struct {
-		desc               string
-		protocol           string
-		balancingMode      string
-		transportSecurity  string
-		affinityHeader     string
-		affinityCookie     string
-		affinityConnection string
-		healthChecks       string
-		exp                BackendResolveOpts
-		wantErr            bool
+		desc                          string
+		protocol                      string
+		balancingMode                 string
+		balancingPanicThreshold       string
+		balancingLocalityAwareRouting string
+		transportSecurity             string
+		affinityHeader                string
+		affinityCookie                string
+		affinityConnection            string
+		healthChecks                  string
+		exp                           BackendResolveOpts
+		wantErr                       bool
 	}{
 		{
-			desc:           "OK, case 1",
-			protocol:       "http",
-			balancingMode:  "mode-1",
-			affinityHeader: "name=name-1",
+			desc:                          "OK, case 1",
+			protocol:                      "http",
+			balancingMode:                 "mode-1",
+			balancingPanicThreshold:       "10",
+			balancingLocalityAwareRouting: "50",
+			affinityHeader:                "name=name-1",
 			exp: BackendResolveOpts{
-				BackendType:   HTTP,
-				Secure:        false,
-				BalancingMode: "mode-1",
-				healthChecks:  hc1,
+				BackendType: HTTP,
+				Secure:      false,
+				LoadBalancingConfig: LoadBalancingConfig{
+					Mode:                 "mode-1",
+					PanicThreshold:       10,
+					LocalityAwareRouting: 50,
+				},
+				healthChecks: hc1,
 				affinityOpts: SessionAffinityOpts{
 					header: &apploadbalancer.HeaderSessionAffinity{
 						HeaderName: "name-1",
@@ -556,17 +564,21 @@ func TestBackendOptsResolver(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			desc:              "OK, case 2",
-			protocol:          "grpc",
-			balancingMode:     "mode-1",
-			transportSecurity: "tls",
-			affinityCookie:    "name=name-1,ttl=10s",
-			healthChecks:      "port=30102",
+			desc:                    "OK, case 2",
+			protocol:                "grpc",
+			balancingMode:           "mode-1",
+			balancingPanicThreshold: "12",
+			transportSecurity:       "tls",
+			affinityCookie:          "name=name-1,ttl=10s",
+			healthChecks:            "port=30102",
 			exp: BackendResolveOpts{
-				BackendType:   GRPC,
-				Secure:        true,
-				BalancingMode: "mode-1",
-				healthChecks:  []*apploadbalancer.HealthCheck{hc2},
+				BackendType: GRPC,
+				Secure:      true,
+				LoadBalancingConfig: LoadBalancingConfig{
+					Mode:           "mode-1",
+					PanicThreshold: 12,
+				},
+				healthChecks: []*apploadbalancer.HealthCheck{hc2},
 				affinityOpts: SessionAffinityOpts{
 					cookie: &apploadbalancer.CookieSessionAffinity{
 						Name: "name-1",
@@ -583,10 +595,13 @@ func TestBackendOptsResolver(t *testing.T) {
 			affinityConnection: "source-ip=true",
 			healthChecks:       "port=30103,http-path=/health-1,timeout=10s,interval=20s,healthy-threshold=3,unhealthy-threshold=2",
 			exp: BackendResolveOpts{
-				BackendType:   HTTP2,
-				Secure:        false,
-				BalancingMode: "mode-1",
-				healthChecks:  []*apploadbalancer.HealthCheck{hc3},
+				BackendType: HTTP2,
+				Secure:      false,
+				LoadBalancingConfig: LoadBalancingConfig{
+					Mode:           "mode-1",
+					PanicThreshold: 0,
+				},
+				healthChecks: []*apploadbalancer.HealthCheck{hc3},
 				affinityOpts: SessionAffinityOpts{
 					connection: &apploadbalancer.ConnectionSessionAffinity{
 						SourceIp: true,
@@ -602,10 +617,12 @@ func TestBackendOptsResolver(t *testing.T) {
 			affinityConnection: "source-ip=true",
 			healthChecks:       "port=30104,grpc-service-name=healthchecker",
 			exp: BackendResolveOpts{
-				BackendType:   HTTP2,
-				Secure:        false,
-				BalancingMode: "mode-1",
-				healthChecks:  []*apploadbalancer.HealthCheck{hc4},
+				BackendType: HTTP2,
+				Secure:      false,
+				LoadBalancingConfig: LoadBalancingConfig{
+					Mode: "mode-1",
+				},
+				healthChecks: []*apploadbalancer.HealthCheck{hc4},
 				affinityOpts: SessionAffinityOpts{
 					connection: &apploadbalancer.ConnectionSessionAffinity{
 						SourceIp: true,
@@ -638,6 +655,14 @@ func TestBackendOptsResolver(t *testing.T) {
 			exp:           BackendResolveOpts{},
 			wantErr:       true,
 		},
+		{
+			desc:                    "Wrong, panic threshold is not a number",
+			protocol:                "http76",
+			balancingMode:           "mode-1",
+			balancingPanicThreshold: "wrong",
+			exp:                     BackendResolveOpts{},
+			wantErr:                 true,
+		},
 	}
 
 	resolvers := NewResolvers(nil)
@@ -645,8 +670,8 @@ func TestBackendOptsResolver(t *testing.T) {
 		r := resolvers.BackendOpts()
 		t.Run(tc.desc, func(t *testing.T) {
 			ret, err := r.Resolve(
-				tc.protocol, tc.balancingMode, tc.transportSecurity, tc.affinityHeader,
-				tc.affinityCookie, tc.affinityConnection, tc.healthChecks,
+				tc.protocol, tc.balancingMode, tc.balancingPanicThreshold, tc.balancingLocalityAwareRouting,
+				tc.transportSecurity, tc.affinityHeader, tc.affinityCookie, tc.affinityConnection, tc.healthChecks,
 			)
 			require.True(t, (err != nil) == tc.wantErr, "Result() error = %v)", err)
 			if !tc.wantErr {

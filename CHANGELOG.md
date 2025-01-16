@@ -1,6 +1,12 @@
 # Changelog
 
 
+## v0.2.16 - January 16, 2025
+### Added
+* Modify request headers annotations
+* Autoscale annotations
+* Load balancing config annotations
+
 ## v0.2.15
 ### Added
 * Logging request-id on error
