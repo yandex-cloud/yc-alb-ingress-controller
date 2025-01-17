@@ -26,6 +26,7 @@ import (
 	ycsdk "github.com/yandex-cloud/go-sdk"
 	"github.com/yandex-cloud/go-sdk/iamkey"
 	"go.uber.org/zap/zapcore"
+	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -64,6 +65,9 @@ func init() {
 	utilruntime.Must(albv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
+
+// this var is supposed to be injected in docker build
+var userAgent = "alb-ingress-controller"
 
 func main() {
 	var (
@@ -286,6 +290,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
+	setupLog.Info(fmt.Sprintf("Hello from %s!", userAgent))
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
@@ -313,7 +318,7 @@ func buildSDK(keyFile, endpoint string) (*ycsdk.SDK, error) {
 	return ycsdk.Build(context.Background(), ycsdk.Config{
 		Credentials: creds,
 		Endpoint:    endpoint,
-	})
+	}, grpc.WithUserAgent(userAgent))
 }
 
 type Key struct {

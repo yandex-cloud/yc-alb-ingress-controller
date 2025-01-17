@@ -102,7 +102,9 @@ run: manifests generate fmt vet check_FOLDER_ID check_KEY_FILE ## Run a controll
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+	$(CONTAINER_TOOL) build \
+		--build-arg "USER_AGENT=${IMG_NAME}:${TAG}" \
+		-t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
