@@ -5,6 +5,7 @@
   ".changes/unreleased/.gitkeep":"opensource/yc-alb-ingress-controller/.changes/unreleased/.gitkeep",
   ".changes/v0.2.15.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.15.md",
   ".changes/v0.2.16.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.16.md",
+  ".changes/v0.2.17.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.17.md",
   ".changie.yaml":"opensource/yc-alb-ingress-controller/.changie.yaml",
   ".env.example":"opensource/yc-alb-ingress-controller/.env.example",
   ".gitignore":"opensource/yc-alb-ingress-controller/.gitignore",

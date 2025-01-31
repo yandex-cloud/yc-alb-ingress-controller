@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.17 - January 31, 2025
+### Fixed
+* Remove wrong requirements in CRDs
+
 ## v0.2.16 - January 16, 2025
 ### Added
 * Modify request headers annotations
