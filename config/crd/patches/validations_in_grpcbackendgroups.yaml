@@ -10,13 +10,5 @@
     required: ["header"]
 
 - op: add
-  path: "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/backends/items/oneOf"
-  value:
-  - properties:
-    required: ["service"]
-  - properties:
-    required: ["storageBucket"]
-
-- op: add
   path: "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/backends/items/properties/healthChecks/items/required/-"
-  value: http
+  value: grpc

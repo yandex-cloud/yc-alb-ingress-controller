@@ -27,6 +27,7 @@
   "config/crd/bases/alb.yc.io_ingressgroupstatuses.yaml":"opensource/yc-alb-ingress-controller/config/crd/bases/alb.yc.io_ingressgroupstatuses.yaml",
   "config/crd/kustomization.yaml":"opensource/yc-alb-ingress-controller/config/crd/kustomization.yaml",
   "config/crd/kustomizeconfig.yaml":"opensource/yc-alb-ingress-controller/config/crd/kustomizeconfig.yaml",
+  "config/crd/patches/validations_in_grpcbackendgroups.yaml":"opensource/yc-alb-ingress-controller/config/crd/patches/validations_in_grpcbackendgroups.yaml",
   "config/crd/patches/validations_in_httpbackendgroups.yaml":"opensource/yc-alb-ingress-controller/config/crd/patches/validations_in_httpbackendgroups.yaml",
   "config/default/kustomization.yaml":"opensource/yc-alb-ingress-controller/config/default/kustomization.yaml",
   "config/default/manager_metrics_patch.yaml":"opensource/yc-alb-ingress-controller/config/default/manager_metrics_patch.yaml",

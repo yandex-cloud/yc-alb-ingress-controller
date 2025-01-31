@@ -97,8 +97,6 @@ spec:
                             format: int64
                             type: integer
                         required:
-                        - grpc
-                        - http
                         - port
                         type: object
                       type: array

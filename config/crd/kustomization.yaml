@@ -13,6 +13,10 @@ patches:
   target:
     kind: CustomResourceDefinition
     name: httpbackendgroups.alb.yc.io
+- path: patches/validations_in_grpcbackendgroups.yaml
+  target:
+    kind: CustomResourceDefinition
+    name: grpcbackendgroups.alb.yc.io
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.
 configurations:

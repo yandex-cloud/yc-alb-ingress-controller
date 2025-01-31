@@ -116,7 +116,9 @@ type HttpHealthCheck struct { //nolint:revive
 }
 
 type HealthCheck struct {
+	// +kubebuilder:validation:Optional
 	HTTP *HttpHealthCheck `json:"http"`
+	// +kubebuilder:validation:Optional
 	GRPC *GrpcHealthCheck `json:"grpc"`
 
 	Port *int64 `json:"port"`
