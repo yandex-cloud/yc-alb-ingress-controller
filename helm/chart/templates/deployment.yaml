@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "yc-alb-ingress-controller.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    control-plane: {{ template "yc-alb-ingress-controller.fullname" . }}
+spec:
+  selector:
+    matchLabels:
+      control-plane: {{ template "yc-alb-ingress-controller.fullname" . }}
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        control-plane: {{ template "yc-alb-ingress-controller.fullname" . }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      nodeSelector:
+{{ toYaml .Values.deploymentNodeSelector | nindent 8 }}
+      tolerations:
+{{ toYaml .Values.deploymentTolerations | nindent 8 }}
+      serviceAccountName: {{ include "yc-alb-ingress-controller.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 10 }}
+      containers:
+      - command: ["/manager", "--keyfile", "/etc/yc-alb-ingress-secrets/sa-key.json", "--cluster-label-name", "{{ .Values.clusterLabelName }}"]
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        env:
+        - name: YC_ALB_FOLDER_ID
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+              key: YC_ALB_FOLDER_ID
+        - name: YC_ALB_CLUSTER_ID
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+              key: YC_ALB_CLUSTER_ID
+        - name: YC_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+              key: YC_ENDPOINT
+        - name: YC_ALB_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+              key: YC_ALB_REGION
+        - name: YC_ALB_ENABLE_DEFAULT_HEALTHCHECKS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+              key: YC_ALB_ENABLE_DEFAULT_HEALTHCHECKS
+        volumeMounts:
+        - name: sa-key
+          mountPath: "/etc/yc-alb-ingress-secrets"
+          readOnly: true
+        {{ if .Values.internalRootCaSecretName }}
+        - name: internal-root-ca
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        {{ end }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        name: {{ .Chart.Name }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      volumes:
+      - name: sa-key
+        secret:
+          secretName: {{ .Values.saKeySecretName }}
+          items:
+          - key: {{ .Values.saKeySecretKeyFile }}
+            path: sa-key.json
+        {{ if .Values.internalRootCaSecretName }}
+      - name: internal-root-ca
+        secret:
+          defaultMode: 420
+          secretName: {{ .Values.internalRootCaSecretName }}
+          items:
+            - key: internal-root-ca
+              path: ca-certificates.crt
+      {{ end }}

@@ -1,0 +1,226 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    component: yc-alb-ingress
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: httpbackendgroups.alb.yc.io
+spec:
+  group: alb.yc.io
+  names:
+    kind: HttpBackendGroup
+    listKind: HttpBackendGroupList
+    plural: httpbackendgroups
+    singular: httpbackendgroup
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HttpBackendGroup is the Schema for the httpbackendgroups API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: HttpBackendGroupSpec defines the desired state of HttpBackendGroup
+            properties:
+              backends:
+                items:
+                  oneOf:
+                  - required:
+                    - service
+                  - required:
+                    - storageBucket
+                  properties:
+                    healthChecks:
+                      items:
+                        properties:
+                          grpc:
+                            properties:
+                              serviceName:
+                                type: string
+                            required:
+                            - serviceName
+                            type: object
+                          healthyThreshold:
+                            description: |-
+                              Number of consecutive successful health checks required to mark an unhealthy target as healthy.
+
+                              Both `0` and `1` values amount to one successful check required.
+
+                              The value is ignored when a load balancer is initialized; a target is marked healthy after one successful check.
+
+                              Default value: `0`.
+                            format: int64
+                            type: integer
+                          http:
+                            properties:
+                              path:
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          interval:
+                            description: Base interval between consecutive health
+                              checks.
+                            type: string
+                          port:
+                            format: int64
+                            type: integer
+                          timeout:
+                            description: |-
+                              Health check timeout.
+
+                              The timeout is the time allowed for the target to respond to a check.
+                              If the target doesn't respond in time, the check is considered failed
+                            type: string
+                          unhealthyThreshold:
+                            description: |-
+                              Number of consecutive failed health checks required to mark a healthy target as unhealthy.
+
+                              Both `0` and `1` values amount to one unsuccessful check required.
+
+                              The value is ignored if a health check is failed due to an HTTP `503 Service Unavailable` response from the target
+                              (not applicable to TCP stream health checks). The target is immediately marked unhealthy.
+
+                              Default value: `0`.
+                            format: int64
+                            type: integer
+                        required:
+                        - http
+                        - port
+                        type: object
+                      type: array
+                    loadBalancingConfig:
+                      properties:
+                        balancerMode:
+                          default: RANDOM
+                          type: string
+                        localityAwareRouting:
+                          default: 0
+                          format: int64
+                          type: integer
+                        panicThreshold:
+                          default: 0
+                          format: int64
+                          type: integer
+                      required:
+                      - balancerMode
+                      - localityAwareRouting
+                      - panicThreshold
+                      type: object
+                    name:
+                      type: string
+                    service:
+                      properties:
+                        name:
+                          type: string
+                        port:
+                          description: ServiceBackendPort is the service port being
+                            referenced. See k8s.io/api/networking/v1/ServiceBackendPort
+                          properties:
+                            name:
+                              description: |-
+                                Name is the name of the port on the Service.
+                                This is a mutually exclusive setting with "Number".
+                              type: string
+                            number:
+                              description: |-
+                                Number is the numerical port number (e.g. 80) on the Service.
+                                This is a mutually exclusive setting with "Name".
+                              format: int32
+                              type: integer
+                          type: object
+                      required:
+                      - name
+                      - port
+                      type: object
+                    storageBucket:
+                      properties:
+                        name:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    tls:
+                      properties:
+                        sni:
+                          type: string
+                        trustedCa:
+                          type: string
+                      type: object
+                    useHttp2:
+                      type: boolean
+                    weight:
+                      default: 1
+                      format: int64
+                      type: integer
+                  required:
+                  - name
+                  type: object
+                type: array
+              sessionAffinity:
+                oneOf:
+                - required:
+                  - connection
+                - required:
+                  - cookie
+                - required:
+                  - header
+                properties:
+                  connection:
+                    properties:
+                      sourceIP:
+                        type: boolean
+                    required:
+                    - sourceIP
+                    type: object
+                  cookie:
+                    properties:
+                      name:
+                        type: string
+                      ttl:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  header:
+                    properties:
+                      headerName:
+                        type: string
+                    required:
+                    - headerName
+                    type: object
+                type: object
+            type: object
+          status:
+            description: HttpBackendGroupStatus defines the observed state of HttpBackendGroup
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

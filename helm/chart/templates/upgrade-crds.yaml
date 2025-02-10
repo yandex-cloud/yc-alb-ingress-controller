@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "yc-alb-ingress-controller.fullname" . }}-upgrade-crds
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: alb-ingress-upgrade-crds
+    spec:
+      nodeSelector:
+{{ toYaml .Values.updateCrdsNodeSelector | nindent 8 }}
+      tolerations:
+{{ toYaml .Values.updateCrdsTolerations | nindent 8 }}
+      serviceAccountName: {{ include "yc-alb-ingress-controller.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 10 }}
+      containers:
+        - name: kubectl
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 14 }}
+          image: "{{ .Values.kubectl.image.repository }}:{{ .Values.kubectl.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - >
+              env;
+              mkdir /tmp/delete_me;
+              printf '%s\n' "$crd1" > /tmp/delete_me/alb.yc.io_httpbackendgroups.yaml;
+              printf '%s\n' "$crd2" > /tmp/delete_me/alb.yc.io_grpcbackendgroups.yaml;
+              printf '%s\n' "$crd3" > /tmp/delete_me/alb.yc.io_ingressgroupsettings.yaml;
+              printf '%s\n' "$crd4" > /tmp/delete_me/alb.yc.io_ingressgroupstatuses.yaml;
+              kubectl  apply -f /tmp/delete_me/;
+          env:
+            - name: crd1
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+                  key: alb.yc.io_httpbackendgroups.yaml
+            - name: crd2
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+                  key: alb.yc.io_grpcbackendgroups.yaml
+            - name: crd3
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+                  key: alb.yc.io_ingressgroupsettings.yaml
+            - name: crd4
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+                  key: alb.yc.io_ingressgroupstatuses.yaml
+      restartPolicy: Never
+

@@ -1,0 +1,54 @@
+helm_chart:
+  name: ${REGISTRY}/${CHART_PATH}/${CHART_NAME}
+  tag: ${CHART_TAG}
+
+requirements:
+  k8s_version: ">= 1.18.0"
+
+images:
+  - name_with_registry: image.repository
+    tag: image.tag
+  - name_with_registry: hcImage.repository
+    tag: hcImage.tag
+  - name_with_registry: kubectl.image.repository
+    tag: kubectl.image.tag
+
+user_values:
+  - name: folderId
+    disabled: true
+    title:
+      ru: Идентификатор каталога
+      en: Folder Id
+    description:
+      ru: Kаталог, в котором будут находиться балансировщики нагрузки, обеспечивающие работу Ingress-ресурсов.
+      en: The identifier of the folder where application load balancers will be located.
+    folder_id_value:
+      required: true
+  - name: clusterId
+    disabled: true
+    title:
+      ru: Идентификатор кластера
+      en: Cluster Id
+    description:
+      ru: Идентификатор кластера будет использоваться, чтобы обозначить, какому кластеру принадлежит облачный ресурс.
+      en: The identifier of the Kubernetes cluster.
+    cluster_id_value:
+      required: true
+  - name: saKeySecretKey
+    title:
+      ru: Ключ сервисного аккаунта
+      en: Secret key
+    description:
+      ru: "Ключ сервисного аккаунта для ALB Ingress Controller. Используйте команду: `yc iam key create --service-account-id <SERVICE_ACCOUNT_ID> --output sa-key.json & tr -d '\n' < sa-key.json`."
+      en: "Secret key for service account key for the ALB controller. (Use: `yc iam key create --service-account-id <SERVICE_ACCOUNT_ID> --output sa-key.json & tr -d '\n' < sa-key.json`)"
+    service_account_key_value:
+      required: true
+  - name: enableDefaultHealthChecks
+    title:
+      ru: Включить проверки работоспособности по умолчанию
+      en: Enable default healthchecks
+    description:
+      ru: "Устанавливает ресурс DaemonSet для проверок работоспособности. DaemonSet находится в сети хоста. Можно не устанавливать ресурс, если проверки работоспособности не нужны или используются пользовательские проверки."
+      en: "Installs the DaemonSet resource for healthchecks. DeamonSet runs in the host network. Installing the  resource is not necessary if healthchecks are not needed or if custom healthchecks are used."
+    boolean_value:
+      default_value: true

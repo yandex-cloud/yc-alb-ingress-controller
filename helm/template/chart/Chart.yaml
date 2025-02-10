@@ -1,0 +1,20 @@
+apiVersion: v1
+name: yc-alb-ingress-controller-chart
+description: Yandex.Cloud Application Load Balancer Ingress Controller Helm chart for Kubernetes
+version: ${CHART_TAG}
+appVersion: ${IMAGE_TAG}
+home: https://github.com/yandex-cloud/yc-alb-ingress-controller
+sources:
+  - https://github.com/yandex-cloud/yc-alb-ingress-controller
+maintainers:
+  - name: baranov1ch
+    url: https://github.com/baranov1ch
+    email: baranov1ch@users.noreply.github.com
+kubeVersion: ">= 1.18.0"
+keywords:
+  - yc
+  - yandexcloud
+  - yandex
+  - alb
+  - load balancer
+  - ingress

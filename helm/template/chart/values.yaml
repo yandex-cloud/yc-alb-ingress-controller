@@ -1,0 +1,139 @@
+# the number of replicas of the application.
+# количество реплик приложения.
+replicaCount: 1
+
+image:
+  # technical field image repository.
+  # техническое поле репозиторий образа.
+  repository: ${REGISTRY}/${IMAGE_PATH}/${IMAGE_NAME}
+  # technical field image tag.
+  # техническое поле тэг образа.
+  tag: ${IMAGE_TAG}
+  # technical field image upload policy.
+  # техническое поле политика загрузки образа.
+  pullPolicy: IfNotPresent
+
+# technical field name of the hearth, tags, prefix.
+# техническое поле название пода, метки, префикс.
+nameOverride: "yc-alb-ingress-controller"
+
+# The identifier of the folder where application load balancers will be located. A non-empty value is required
+# Идентификатор каталога. Kаталог в котором будут находиться балансировщики нагрузки, обеспечивающие работу Ingress- ресурсов.
+folderId: ""
+
+
+# The identifier of the Kubernetes cluster. A non-empty value is required
+# Идентификатор Кластера. Идентификатор Кластера будет использоваться для обозначения принадлежности облачных ресурсов к выбранному кластеру.
+clusterId: ""
+
+# Cloud environment endpoint in the format <host>:<port>. Optional.
+# Endpoint облачной среды в формате <хост>:<порт>.
+endpoint: ${YC_API_ENDPOINT}
+
+# ID of the availability zone the resource lives in. Optional.
+# Идентификатор зоны доступности, в которой находится ресурс. Необязательный.
+region: ""
+
+
+# service account key for the ALB controller.
+# техническое поле название ключа в кластере.
+saKeySecretName: yc-alb-ingress-controller-sa-key
+# technical field name of the service account key file.
+# техническое поле название файла ключа сервисного аккаунта.
+saKeySecretKeyFile: sa-key.json
+# is the service account key for the ALB controller. (Use: `yc iam key create --service-account-id <SERVICE_ACCOUNT_ID> --output sa-key.json & tr -d '\n' < sa-key.json`).
+# Ключ сервисного акаунта для ALB контроллера. (Используйте: `yc iam key create --service-account-id <SERVICE_ACCOUNT_ID> --output sa-key.json & tr -d '\n' < sa-key.json`).
+saKeySecretKey: ""
+
+clusterLabelName: "yc-k8s-cluster"
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  # (по умолчанию true) Указывает, следует ли создавать учетную запись службы.
+  create: true
+  # Annotations to add to the service account
+  # аннотации для добавления в учетную запись службы.
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  # Имя используемой учетной записи службы. Если значение не установлено и serviceAccount.create равно true, имя генерируется с использованием шаблона fullname.
+  name:
+  # Automount API credentials for a Service Account.
+  # Автоматическое подключение учетных данных API для учетной записи службы.
+  automountServiceAccountToken: true
+
+securityContext:
+  # technical field run container processes not root user
+  # техническое поле запуск процессов контейнера  не root пользователем
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop:
+      - ALL
+  allowPrivilegeEscalation: false
+
+# Pod Security Context
+podSecurityContext:
+  # technical field run container processes not root user
+  # техническое поле запуск процессов контейнера  не root пользователем
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Time period for the controller pod to do a graceful shutdown
+# Период времени, в течение которого модуль контроллера выполнит плавное выключение.
+terminationGracePeriodSeconds: 10
+
+# technical field plaintext HealthCheck port
+# техническое поле HealthCheck port
+hcPort: 10501
+
+hcImage:
+  #  техническое поле репозиторий образа контейнера HealthCheck.
+  #  technical field repository of the HealthCheck container image.
+  repository: ${REGISTRY}/yandex-cloud/yc-alb-ingress/alpine/socat
+  #  technical field of the HealthCheck container image tag.
+  #  техническое поле тэг образа контейнера HealthCheck.
+  tag: 1.7.4.2-r0
+  #  technical field image upload policy.
+  #  техническое поле политика загрузки образа.
+  pullPolicy: IfNotPresent
+
+# technical field is the name of the secret YandexInternalRootCA.crt. Key of certificate payload in secret must be 'internal-root-ca'
+# техническое поле название секрета YandexInternalRootCA.crt. Ключ с данными сертификата внутри секрета должен обязательно называться 'internal-root-ca'
+internalRootCaSecretName: ""
+
+# technical field
+# техническое поле
+daemonsetNodeSelector: {}
+daemonsetTolerations: []
+
+deploymentNodeSelector: {}
+deploymentTolerations: []
+
+updateCrdsNodeSelector: {}
+updateCrdsTolerations: []
+
+# enables daemonset for healthchecks. Deamonset runs in hostNetwork. Can be disabled, if healthchecks aren't needed or if custom healthchecks are used
+# устанавливает ресурс DaemonSet для проверок работоспособности. DaemonSet находится в сети хоста. Можно не устанавливать ресурс, если проверки работоспособности не нужны или используются пользовательские проверки.
+enableDefaultHealthChecks: true
+
+kubectl:
+  image:
+    repository: ${REGISTRY}/yandex-cloud/yc-alb-ingress/bitnami/kubectl
+    tag: 1.27.2
+    # Digest value example: sha256:d238835e151cec91c6a811fe3a89a66d3231d9f64d09e5f3c49552672d271f38.
+    # If used, it will take precedence over the kubectl.image.tag.
+    # digest:
+    # kubectl image tag. If used, it will take precedence over the cluster Kubernetes version.
+    # tag: 1.16.15
+  # Container Level Security Context for the 'kubectl' container of the crd jobs. Optional.
+  # See: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container
+  containerSecurityContext: {}
+  # Resource requests/limits to specify for the upgrade/cleanup job. Optional
+  resources: {}
+  # Annotations to set for the upgrade/cleanup job. Optional.
+  annotations: {}
+  # Labels to set for the upgrade/cleanup job. Optional.
+  labels: {}

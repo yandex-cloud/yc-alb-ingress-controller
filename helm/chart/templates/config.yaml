@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "yc-alb-ingress-controller.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+data:
+  YC_ALB_FOLDER_ID: {{ .Values.folderId }}
+  YC_ALB_CLUSTER_ID: {{ include "validateClusterID" .Values.clusterId }}
+  YC_ENDPOINT: {{ .Values.endpoint }}
+  YC_ALB_REGION: {{ include "validateRegionFunc" .Values.region | quote }}
+  YC_ALB_ENABLE_DEFAULT_HEALTHCHECKS:  {{ .Values.enableDefaultHealthChecks | quote }}
+  alb.yc.io_grpcbackendgroups.yaml: {{ .Files.Get "crds/alb.yc.io_grpcbackendgroups.yaml" | quote }}
+  alb.yc.io_httpbackendgroups.yaml: {{ .Files.Get "crds/alb.yc.io_httpbackendgroups.yaml" | quote }}
+  alb.yc.io_ingressgroupsettings.yaml: {{ .Files.Get "crds/alb.yc.io_ingressgroupsettings.yaml" | quote }}
+  alb.yc.io_ingressgroupstatuses.yaml: {{ .Files.Get "crds/alb.yc.io_ingressgroupstatuses.yaml" | quote }}

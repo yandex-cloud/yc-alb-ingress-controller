@@ -4,17 +4,13 @@ ifneq (,$(wildcard ./.env))
 endif
 
 # Temporarily support only Yandex Container registry to avoid providing imagePullSecrets
-REGISTRY_HOST?=cr.yandex
-IMG_NAME?=yc-alb-ingress-controller
+REGISTRY_ENDPOINT ?= cr.yandex
+IMAGE_NAME ?= yc-alb-ingress-controller
+IMAGE_PATH ?= yandex-cloud/alb-ingress
+REGISTRY ?= $(REGISTRY_ENDPOINT)/$(REGISTRY_ID)
 
-ifdef IMG_PATH
-	IMG_NAME := $(IMG_PATH)/$(IMG_NAME)
-endif
-
-TAG ?= test
-ifdef REGISTRY_ID
-	IMG = $(REGISTRY_HOST)/${REGISTRY_ID}/$(IMG_NAME):${TAG}
-endif
+IMAGE_TAG ?= test
+IMG ?= $(REGISTRY)/$(IMAGE_PATH)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -103,7 +99,7 @@ run: manifests generate fmt vet check_FOLDER_ID check_KEY_FILE ## Run a controll
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build \
-		--build-arg "USER_AGENT=${IMG_NAME}:${TAG}" \
+		--build-arg "USER_AGENT=${IMAGE_NAME}:${IMAGE_TAG}" \
 		-t ${IMG} .
 
 .PHONY: docker-push

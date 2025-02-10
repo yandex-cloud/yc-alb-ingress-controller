@@ -1,0 +1,56 @@
+{{ if .Values.enableDefaultHealthChecks }}
+
+{{- if eq .Release.Namespace "default" }}
+{{- fail "ALB Ingress Controller installation in the 'default' namespace is not allowed" }}
+{{- end }}
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ template "yc-alb-ingress-controller.fullname" . }}-hc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    control-plane: {{ template "yc-alb-ingress-controller.fullname" . }}
+spec:
+  selector:
+    matchLabels:
+      name: {{ template "yc-alb-ingress-controller.fullname" . }}
+  template:
+    metadata:
+      annotations:
+        "cluster-autoscaler.kubernetes.io/enable-ds-eviction": "true"
+      labels:
+        name: {{ template "yc-alb-ingress-controller.fullname" . }}
+    spec:
+      nodeSelector:
+{{ toYaml .Values.daemonsetNodeSelector | nindent 8 }}
+      tolerations:
+{{ toYaml .Values.daemonsetTolerations | nindent 8 }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        runAsUser: 999
+      containers:
+        - name: hc-proxy
+          image: "{{ .Values.hcImage.repository }}:{{ .Values.hcImage.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command:
+            - socat
+          args:
+            - TCP6-LISTEN:{{ .Values.hcPort }},ipv6only=0,fork,reuseaddr
+            - TCP:localhost:10256
+          ports:
+            - containerPort: {{ .Values.hcPort }}
+              hostPort: {{ .Values.hcPort }}
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+      terminationGracePeriodSeconds: 30
+
+{{ end }}

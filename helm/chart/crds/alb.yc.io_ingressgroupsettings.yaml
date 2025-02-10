@@ -1,0 +1,81 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    component: yc-alb-ingress
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  name: ingressgroupsettings.alb.yc.io
+spec:
+  conversion:
+    strategy: None
+  group: alb.yc.io
+  names:
+    kind: IngressGroupSettings
+    listKind: IngressGroupSettingsList
+    plural: ingressgroupsettings
+    singular: ingressgroupsettings
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            logOptions:
+              properties:
+                disable:
+                  description: Do not send logs to Cloud Logging log group.
+                  type: boolean
+                discardRules:
+                  description: Ordered list of rules, first matching rule applies
+                  items:
+                    description: LogDiscardRule discards a fraction of logs with certain
+                      codes. If neither codes nor intervals are provided, rule applies
+                      to all logs.
+                    properties:
+                      discardPercent:
+                        description: 'Percent of logs to be discarded: 0 - keep all,
+                        100 or unset - discard all'
+                        format: int64
+                        maximum: 100
+                        minimum: 0
+                        type: integer
+                      grpcCodes:
+                        description: GRPC codes that should be discarded
+                        items:
+                          type: string
+                        type: array
+                      httpCodeIntervals:
+                        description: Groups of HTTP codes like 4xx that should be discarded.
+                        items:
+                          type: string
+                        type: array
+                      httpCodes:
+                        description: HTTP codes that should be discarded.
+                        items:
+                          format: int64
+                          type: integer
+                        type: array
+                    type: object
+                  type: array
+                logGroupID:
+                  description: Cloud Logging log group ID to store access logs. If not
+                    set then logs will be stored in default log group for the folder
+                    where load balancer located.
+                  type: string
+              type: object
+            metadata:
+              type: object
+          type: object
+      served: true
+      storage: true
