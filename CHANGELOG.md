@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.18 - February 13, 2025
+### Fixed
+* Dont create empty and unused backend groups
+
 ## v0.2.17 - January 31, 2025
 ### Fixed
 * Remove wrong requirements in CRDs
