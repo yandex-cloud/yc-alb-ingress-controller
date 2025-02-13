@@ -92,19 +92,27 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 			return obj, fmt.Errorf("failed to list ingresses by service: %w", err)
 		}
 
-		bg, err := r.BackendGroupBuilder.BuildForSvc(svc.ToReconcile, ings, tg.Id)
-		if err != nil {
-			return obj, fmt.Errorf("failed to build backend group: %w", err)
+		if len(ings) != 0 {
+			// Service is referenced directly by ingress, not by HttpBackendGroup or GrpcBackendGroup
+
+			bg, err := r.BackendGroupBuilder.BuildForSvc(svc.ToReconcile, ings, tg.Id)
+			if err != nil {
+				return obj, fmt.Errorf("failed to build backend group: %w", err)
+			}
+
+			bg, err = r.BackendGroupDeployer.Deploy(ctx, bg)
+			if err != nil {
+				return obj, fmt.Errorf("failed to deploy backend group: %w", err)
+			}
+			err = r.AddBGIDToGroupStatuses(ctx, *svc.ToReconcile, bg)
+			if err != nil {
+				return obj, fmt.Errorf("failed to add bg id to group statuses: %w", err)
+			}
 		}
 
-		bg, err = r.BackendGroupDeployer.Deploy(ctx, bg)
+		err = r.AddTGIDToGroupStatuses(ctx, *svc.ToReconcile, tg)
 		if err != nil {
-			return obj, fmt.Errorf("failed to deploy backend group: %w", err)
-		}
-
-		err = r.AddIDsToGroupStatuses(ctx, *svc.ToReconcile, tg, bg)
-		if err != nil {
-			return obj, fmt.Errorf("failed to add ids to group statuses: %w", err)
+			return obj, fmt.Errorf("failed to add tg id to group statuses: %w", err)
 		}
 		return obj, nil
 	}
@@ -113,25 +121,32 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 		obj := svc.ToDelete
 
 		bgName := r.Names.NewBackendGroup(req.NamespacedName)
-		tgName := r.Names.TargetGroup(req.NamespacedName)
-
 		bg, err := r.Repo.FindBackendGroup(ctx, bgName)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return obj, fmt.Errorf("failed to find backend group: %w", err)
 		}
+		if err == nil {
+			err = r.RemoveBGIDFromGroupStatuses(ctx, *svc.ToDelete, bg)
+			if err != nil {
+				return obj, fmt.Errorf("failed to remove ids from group statuses: %w", err)
+			}
+
+			_, err = r.BackendGroupDeployer.Undeploy(ctx, bgName)
+			if err != nil {
+				return obj, fmt.Errorf("failed to undeploy backend group: %w", err)
+			}
+		}
+
+		tgName := r.Names.TargetGroup(req.NamespacedName)
+
 		tg, err := r.Repo.FindTargetGroup(ctx, tgName)
 		if err != nil {
 			return obj, fmt.Errorf("failed to find target group: %w", err)
 		}
 
-		err = r.RemoveIDsFromGroupStatuses(ctx, *svc.ToDelete, tg, bg)
+		err = r.RemoveTGIDFromGroupStatuses(ctx, *svc.ToDelete, tg)
 		if err != nil {
 			return obj, fmt.Errorf("failed to remove ids from group statuses: %w", err)
-		}
-
-		_, err = r.BackendGroupDeployer.Undeploy(ctx, bgName)
-		if err != nil {
-			return obj, fmt.Errorf("failed to undeploy backend group: %w", err)
 		}
 
 		_, err = r.TargetGroupDeployer.Undeploy(ctx, tgName)
@@ -177,32 +192,6 @@ func (r *Reconciler) updateGroupStatuses(
 	return nil
 }
 
-func (r *Reconciler) AddIDsToGroupStatuses(ctx context.Context, svc core.Service, tg *apploadbalancer.TargetGroup, bg *apploadbalancer.BackendGroup) error {
-	return r.updateGroupStatuses(ctx, svc, func(ctx context.Context, group string) error {
-		status, err := r.GroupStatusManager.LoadStatus(ctx, group)
-		if errors.IsNotFound(err) {
-			return ycerrors.ResourceNotReadyError{
-				ResourceType: "IngressGroupStatus",
-				Name:         group,
-			}
-		}
-		if err != nil {
-			return fmt.Errorf("failed to load group status: %w", err)
-		}
-
-		err = r.GroupStatusManager.AddTargetGroupID(ctx, status, tg.Id)
-		if err != nil {
-			return fmt.Errorf("failed to add target group id: %w", err)
-		}
-
-		err = r.GroupStatusManager.AddBackendGroupID(ctx, status, bg.Id)
-		if err != nil {
-			return fmt.Errorf("failed to add backend group id: %w", err)
-		}
-		return err
-	})
-}
-
 func (r *Reconciler) AddTGIDToGroupStatuses(ctx context.Context, svc core.Service, tg *apploadbalancer.TargetGroup) error {
 	return r.updateGroupStatuses(ctx, svc, func(ctx context.Context, group string) error {
 		status, err := r.GroupStatusManager.LoadStatus(ctx, group)
@@ -224,15 +213,33 @@ func (r *Reconciler) AddTGIDToGroupStatuses(ctx context.Context, svc core.Servic
 	})
 }
 
-func (r *Reconciler) RemoveIDsFromGroupStatuses(ctx context.Context, svc core.Service, tg *apploadbalancer.TargetGroup, bg *apploadbalancer.BackendGroup) error {
+func (r *Reconciler) AddBGIDToGroupStatuses(ctx context.Context, svc core.Service, bg *apploadbalancer.BackendGroup) error {
 	return r.updateGroupStatuses(ctx, svc, func(ctx context.Context, group string) error {
 		status, err := r.GroupStatusManager.LoadStatus(ctx, group)
+		if errors.IsNotFound(err) {
+			return ycerrors.ResourceNotReadyError{
+				ResourceType: "IngressGroupStatus",
+				Name:         group,
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("failed to load group status: %w", err)
+		}
 
-		// Do nothing if status is already deleted by group reconciler
+		err = r.GroupStatusManager.AddBackendGroupID(ctx, status, bg.Id)
+		if err != nil {
+			return fmt.Errorf("failed to add backend group id: %w", err)
+		}
+		return err
+	})
+}
+
+func (r *Reconciler) RemoveTGIDFromGroupStatuses(ctx context.Context, svc core.Service, tg *apploadbalancer.TargetGroup) error {
+	return r.updateGroupStatuses(ctx, svc, func(ctx context.Context, group string) error {
+		status, err := r.GroupStatusManager.LoadStatus(ctx, group)
 		if errors.IsNotFound(err) {
 			return nil
 		}
-
 		if err != nil {
 			return fmt.Errorf("failed to load group status: %w", err)
 		}
@@ -240,6 +247,19 @@ func (r *Reconciler) RemoveIDsFromGroupStatuses(ctx context.Context, svc core.Se
 		err = r.GroupStatusManager.RemoveTargetGroupID(ctx, status, tg.Id)
 		if err != nil {
 			return fmt.Errorf("failed to remove target group id: %w", err)
+		}
+		return err
+	})
+}
+
+func (r *Reconciler) RemoveBGIDFromGroupStatuses(ctx context.Context, svc core.Service, bg *apploadbalancer.BackendGroup) error {
+	return r.updateGroupStatuses(ctx, svc, func(ctx context.Context, group string) error {
+		status, err := r.GroupStatusManager.LoadStatus(ctx, group)
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to load group status: %w", err)
 		}
 
 		err = r.GroupStatusManager.RemoveBackendGroupID(ctx, status, bg.Id)
