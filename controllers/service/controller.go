@@ -203,6 +203,27 @@ func (r *Reconciler) AddIDsToGroupStatuses(ctx context.Context, svc core.Service
 	})
 }
 
+func (r *Reconciler) AddTGIDToGroupStatuses(ctx context.Context, svc core.Service, tg *apploadbalancer.TargetGroup) error {
+	return r.updateGroupStatuses(ctx, svc, func(ctx context.Context, group string) error {
+		status, err := r.GroupStatusManager.LoadStatus(ctx, group)
+		if errors.IsNotFound(err) {
+			return ycerrors.ResourceNotReadyError{
+				ResourceType: "IngressGroupStatus",
+				Name:         group,
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("failed to load group status: %w", err)
+		}
+
+		err = r.GroupStatusManager.AddTargetGroupID(ctx, status, tg.Id)
+		if err != nil {
+			return fmt.Errorf("failed to add target group id: %w", err)
+		}
+		return err
+	})
+}
+
 func (r *Reconciler) RemoveIDsFromGroupStatuses(ctx context.Context, svc core.Service, tg *apploadbalancer.TargetGroup, bg *apploadbalancer.BackendGroup) error {
 	return r.updateGroupStatuses(ctx, svc, func(ctx context.Context, group string) error {
 		status, err := r.GroupStatusManager.LoadStatus(ctx, group)
