@@ -18,6 +18,8 @@
     {{- print "ru-central1-b" }}
     {{- else if or (or (eq . "c") (eq . "myt")) (eq . "ru-central1-c")}}
     {{- print "ru-central1-c" }}
+    {{- else if or (or (eq . "d") (eq . "klg")) (eq . "ru-central1-d")}}
+    {{- print "ru-central1-d" }}
     {{- else if eq . "il1-a" }}
     {{- print "il1-a" }}
     {{- else if eq . "" }}

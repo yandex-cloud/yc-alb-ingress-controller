@@ -1,6 +1,12 @@
 # Changelog
 
 
+## v0.2.20 - February 27, 2025
+### Added
+* Add ru-central1-d to chart
+### Changed
+* Sync chart version with product version
+
 ## v0.2.18 - February 13, 2025
 ### Fixed
 * Dont create empty and unused backend groups
