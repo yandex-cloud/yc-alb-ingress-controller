@@ -8,8 +8,10 @@ import (
 
 func SubnetIDForProviderID(ip string, instance *compute.Instance) (string, error) {
 	for _, networkInterface := range instance.NetworkInterfaces {
-		if networkInterface.PrimaryV4Address.Address == ip || networkInterface.PrimaryV6Address.Address == ip {
-			return instance.NetworkInterfaces[0].SubnetId, nil
+		ipv4 := networkInterface.PrimaryV4Address
+		ipv6 := networkInterface.PrimaryV6Address
+		if (ipv4 != nil && ipv4.Address == ip) || (ipv6 != nil && ipv6.Address == ip) {
+			return networkInterface.SubnetId, nil
 		}
 	}
 	return "", fmt.Errorf("internal: mismatch between node's address and instance network interfaces")

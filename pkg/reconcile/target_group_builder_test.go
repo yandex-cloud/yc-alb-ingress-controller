@@ -46,7 +46,24 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 			SubnetId: "subnet_2",
 		}},
 	}
-	instances := map[string]*compute.Instance{instance1.Id: instance1, instance2.Id: instance2}
+	instance3 := &compute.Instance{
+		Id: "fhmgp9rcnotn10g8aaaa",
+		NetworkInterfaces: []*compute.NetworkInterface{
+			{
+				PrimaryV4Address: &compute.PrimaryAddress{
+					Address: "192.168.10.26",
+				},
+				SubnetId: "subnet_1",
+			},
+			{
+				PrimaryV4Address: &compute.PrimaryAddress{
+					Address: "192.168.10.29",
+				},
+				SubnetId: "subnet_2",
+			},
+		},
+	}
+	instances := map[string]*compute.Instance{instance1.Id: instance1, instance2.Id: instance2, instance3.Id: instance3}
 
 	fn := func(_ context.Context, id string) (instance *compute.Instance, err error) {
 		if instance = instances[id]; instance == nil {
@@ -497,6 +514,56 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 			expTargets: []*apploadbalancer.Target{
 				{
 					AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.28"},
+					SubnetId:    "subnet_2",
+				},
+			},
+		},
+		{
+			desc:              "compute with multiple interfaces",
+			useEndpointSlices: false,
+			objects: []client.Object{
+				&v1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "svc",
+						Namespace: "default",
+					},
+				},
+				&v1.Endpoints{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"kubernetes.io/service-name": "svc",
+						},
+						Namespace: "default",
+						Name:      "svc",
+					},
+					Subsets: []v1.EndpointSubset{
+						{
+							Addresses: []v1.EndpointAddress{
+								{
+									IP:       "192.168.10.29",
+									NodeName: ptr.To("cl1mkq03gu56o26iia82-ydoj"),
+								},
+							},
+						},
+					},
+				},
+				&v1.Node{
+					TypeMeta:   metav1.TypeMeta{Kind: "Node", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "cl1mkq03gu56o26iia82-ydoj"},
+					Spec: v1.NodeSpec{
+						ProviderID: "yandex://fhmgp9rcnotn10g8aaaa",
+					},
+					Status: v1.NodeStatus{
+						Addresses: []v1.NodeAddress{
+							{Type: v1.NodeInternalIP, Address: "192.168.10.29"},
+							{Type: v1.NodeHostName, Address: "cl1mkq03gu56o26iia82-ydoj"},
+						},
+					},
+				},
+			},
+			expTargets: []*apploadbalancer.Target{
+				{
+					AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.29"},
 					SubnetId:    "subnet_2",
 				},
 			},

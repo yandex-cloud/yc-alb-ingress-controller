@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.21 - March 20, 2025
+### Fixed
+* Fix support for nodes with multiple network interfaces
+
 ## v0.2.20 - February 27, 2025
 ### Added
 * Add ru-central1-d to chart
