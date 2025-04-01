@@ -177,6 +177,7 @@ func main() {
 	cli := mgr.GetClient()
 	repo := yc.NewRepository(sdk, names, folderID)
 	builders.SetupDefaultHealthChecks(enableDefaultHealthChecks)
+	resolvers := builders.NewResolvers(repo)
 
 	if err = (&service.Reconciler{
 		Repo: repo,
@@ -192,6 +193,7 @@ func main() {
 		ServiceLoader:      &k8s.DefaultServiceLoader{Client: cli},
 		IngressLoader:      k8s.NewIngressLoader(cli),
 		Names:              names,
+		Resolvers:          resolvers,
 	}).SetupWithManager(mgr, useEndpointSlices); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)
@@ -206,7 +208,6 @@ func main() {
 		}
 	}
 	factory := builders.NewFactory(folderID, region, names, labels, cli, repo)
-	resolvers := builders.NewResolvers(repo)
 
 	secretEventChan := make(chan event.GenericEvent)
 	certRepo := yc.NewCertRepo(sdk, certsFolderID)

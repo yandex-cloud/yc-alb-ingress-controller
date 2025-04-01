@@ -3,6 +3,7 @@ package reconcile
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/compute/v1"
@@ -40,7 +41,7 @@ func NewTargetGroupBuilder(folderID string, cli client.Client, names *metadata.N
 	}
 }
 
-func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName) (*apploadbalancer.TargetGroup, error) {
+func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName, locations []*apploadbalancer.Location) (*apploadbalancer.TargetGroup, error) {
 	nodeNames, err := t.getServiceNodeNames(ctx, svc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service node names: %w", err)
@@ -52,6 +53,16 @@ func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName
 		return nil, fmt.Errorf("failed to get service: %w", err)
 	}
 	preferIPv6 := k8ssvc.Annotations[k8s.PreferIPv6Targets] == "true"
+
+	var suitableSubnets []string
+	for _, location := range locations {
+		suitableSubnets = append(suitableSubnets, location.SubnetId)
+	}
+
+	subnetsAnn := k8ssvc.Annotations[k8s.Subnets]
+	if subnetsAnn != "" {
+		suitableSubnets = strings.Split(subnetsAnn, ",")
+	}
 
 	var ret []*apploadbalancer.Target
 	for _, nodeName := range nodeNames {
@@ -77,12 +88,12 @@ func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName
 			return nil, fmt.Errorf("failed to get instance fn: %w", err)
 		}
 
-		ip, err := k8s.GetNodeInternalIP(&node, preferIPv6)
+		suitableIPs, err := k8s.GetNodeInternalIPs(&node)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get node internal IP: %w", err)
+			return nil, fmt.Errorf("failed to get node internal IPs: %w", err)
 		}
 
-		subnetID, err := yc.SubnetIDForProviderID(ip, instance)
+		subnetID, ip, err := yc.SubnetIDForProviderID(instance, suitableIPs, suitableSubnets, preferIPv6)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get subnet ID for provider ID %s of node %s: %w", node.Spec.ProviderID, node.Name, err)
 		}

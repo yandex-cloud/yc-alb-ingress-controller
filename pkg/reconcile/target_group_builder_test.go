@@ -75,7 +75,8 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 	testData := []struct {
 		desc string
 
-		objects []client.Object
+		objects   []client.Object
+		locations []*apploadbalancer.Location
 
 		expTargets []*apploadbalancer.Target
 		wantErr    bool
@@ -149,6 +150,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 				},
 			},
+			locations: []*apploadbalancer.Location{{SubnetId: "subnet_1"}, {SubnetId: "subnet_2"}},
 			expTargets: []*apploadbalancer.Target{{
 				AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.30"},
 				SubnetId:    "subnet_1",
@@ -256,6 +258,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 				},
 			},
+			locations: []*apploadbalancer.Location{{SubnetId: "subnet_2"}},
 			expTargets: []*apploadbalancer.Target{{
 				AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.28"},
 				SubnetId:    "subnet_2",
@@ -318,6 +321,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 				},
 			},
+			locations: []*apploadbalancer.Location{{SubnetId: "subnet_1"}, {SubnetId: "subnet_2"}},
 			expTargets: []*apploadbalancer.Target{{
 				AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.30"},
 				SubnetId:    "subnet_1",
@@ -416,6 +420,8 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 				},
 			},
+
+			locations: []*apploadbalancer.Location{{SubnetId: "subnet_2"}},
 			expTargets: []*apploadbalancer.Target{{
 				AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.28"},
 				SubnetId:    "subnet_2",
@@ -463,6 +469,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 				},
 			},
+			locations: []*apploadbalancer.Location{{SubnetId: "subnet_2"}},
 			expTargets: []*apploadbalancer.Target{
 				{
 					AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "2001:0db8:0001:0000:0000:0ab9:C0A8:0102"},
@@ -511,6 +518,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 				},
 			},
+			locations: []*apploadbalancer.Location{{SubnetId: "subnet_2"}},
 			expTargets: []*apploadbalancer.Target{
 				{
 					AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.28"},
@@ -555,12 +563,14 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 					},
 					Status: v1.NodeStatus{
 						Addresses: []v1.NodeAddress{
+							{Type: v1.NodeInternalIP, Address: "192.168.10.26"},
 							{Type: v1.NodeInternalIP, Address: "192.168.10.29"},
 							{Type: v1.NodeHostName, Address: "cl1mkq03gu56o26iia82-ydoj"},
 						},
 					},
 				},
 			},
+			locations: []*apploadbalancer.Location{{SubnetId: "subnet_2"}},
 			expTargets: []*apploadbalancer.Target{
 				{
 					AddressType: &apploadbalancer.Target_IpAddress{IpAddress: "192.168.10.29"},
@@ -577,7 +587,7 @@ func TestServiceTargetGroupBuilder_Build(t *testing.T) {
 			tg, err := b.Build(context.Background(), types.NamespacedName{
 				Name:      "svc",
 				Namespace: "default",
-			})
+			}, tc.locations)
 
 			assert.Equal(t, tc.wantErr, err != nil, "err should not be nil: %v, got %v", tc.wantErr, err)
 			if !tc.wantErr {

@@ -6,13 +6,39 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/compute/v1"
 )
 
-func SubnetIDForProviderID(ip string, instance *compute.Instance) (string, error) {
+func SubnetIDForProviderID(instance *compute.Instance, suitableIPs []string, suitableSubnets []string, preferIPv6 bool) (string, string, error) {
+	subnets := make(map[string]struct{})
+	for _, s := range suitableSubnets {
+		subnets[s] = struct{}{}
+	}
+
+	var resIP string
+	var resSubnetID string
+
 	for _, networkInterface := range instance.NetworkInterfaces {
 		ipv4 := networkInterface.PrimaryV4Address
 		ipv6 := networkInterface.PrimaryV6Address
-		if (ipv4 != nil && ipv4.Address == ip) || (ipv6 != nil && ipv6.Address == ip) {
-			return networkInterface.SubnetId, nil
+		if _, ok := subnets[networkInterface.SubnetId]; !ok {
+			continue
+		}
+
+		for _, ip := range suitableIPs {
+			if ipv6 != nil && ipv6.Address == ip {
+				resIP = ip
+				resSubnetID = networkInterface.SubnetId
+				if preferIPv6 {
+					return resSubnetID, resIP, nil
+				}
+			}
+			if ipv4 != nil && ipv4.Address == ip {
+				resIP = ip
+				resSubnetID = networkInterface.SubnetId
+			}
 		}
 	}
-	return "", fmt.Errorf("internal: mismatch between node's address and instance network interfaces")
+
+	if resIP != "" {
+		return resSubnetID, resIP, nil
+	}
+	return "", "", fmt.Errorf("internal: mismatch between node's address and instance network interfaces")
 }

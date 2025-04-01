@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -14,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
 	albv1alpha1 "github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
 )
 
@@ -94,6 +97,15 @@ func TestServiceLoader_Load(t *testing.T) {
 		},
 	}
 
+	basicIngress2 := networking.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "basic-ing2",
+			Namespace:   "basic-ns",
+			Annotations: map[string]string{AlbTag: "default"},
+		},
+		Spec: networking.IngressSpec{},
+	}
+
 	ingWithDefaultBackend := networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "basic-ing",
@@ -106,7 +118,51 @@ func TestServiceLoader_Load(t *testing.T) {
 					Name: "basic-svc",
 				},
 			},
-			Rules: []networking.IngressRule{},
+		},
+	}
+
+	httpBG := v1alpha1.HttpBackendGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "http-bg",
+			Namespace: "basic-ns",
+		},
+		Spec: albv1alpha1.HttpBackendGroupSpec{
+			Backends: []*v1alpha1.HttpBackend{
+				{
+					Name: "http-backend",
+					Service: &v1alpha1.ServiceBackend{
+						Name: "basic-svc",
+					},
+				},
+			},
+		},
+	}
+
+	ingWithHTTPBG := networking.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "basic-ing",
+			Namespace:   "basic-ns",
+			Annotations: map[string]string{AlbTag: "with-http-bg"},
+		},
+		Spec: networking.IngressSpec{
+			Rules: []networking.IngressRule{
+				{
+					IngressRuleValue: networking.IngressRuleValue{
+						HTTP: &networking.HTTPIngressRuleValue{
+							Paths: []networking.HTTPIngressPath{
+								{
+									Backend: networking.IngressBackend{
+										Resource: &core.TypedLocalObjectReference{
+											Kind: "HttpBackendGroup",
+											Name: "http-bg",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -123,9 +179,12 @@ func TestServiceLoader_Load(t *testing.T) {
 				Name:      "basic-svc",
 				Namespace: "basic-ns",
 			},
-			objects: []client.Object{&svcBasic, &basicIngress},
+			objects: []client.Object{&svcBasic, &basicIngress, &basicIngress2},
 			exp: ServiceToReconcile{
 				ToReconcile: &svcBasic,
+				References: map[string]IngressGroup{
+					"default": {Tag: "default", Items: []networking.Ingress{basicIngress, basicIngress2}},
+				},
 			},
 		},
 		{
@@ -148,6 +207,9 @@ func TestServiceLoader_Load(t *testing.T) {
 			objects: []client.Object{&svcToDelete, &basicIngress},
 			exp: ServiceToReconcile{
 				ToDelete: &svcToDelete,
+				References: map[string]IngressGroup{
+					"default": {Tag: "default", Items: []networking.Ingress{basicIngress}},
+				},
 			},
 		},
 		{
@@ -159,6 +221,24 @@ func TestServiceLoader_Load(t *testing.T) {
 			objects: []client.Object{&svcBasic, &ingWithDefaultBackend},
 			exp: ServiceToReconcile{
 				ToReconcile: &svcBasic,
+				References: map[string]IngressGroup{
+					"default": {Tag: "default", Items: []networking.Ingress{ingWithDefaultBackend}},
+				},
+			},
+		},
+
+		{
+			desc: "http-bg",
+			svc: types.NamespacedName{
+				Name:      "basic-svc",
+				Namespace: "basic-ns",
+			},
+			objects: []client.Object{&svcBasic, &httpBG, &ingWithHTTPBG, &basicIngress2},
+			exp: ServiceToReconcile{
+				ToReconcile: &svcBasic,
+				References: map[string]IngressGroup{
+					"with-http-bg": {Tag: "with-http-bg", Items: []networking.Ingress{ingWithHTTPBG}},
+				},
 			},
 		},
 	}
@@ -192,6 +272,20 @@ func TestServiceLoader_Load(t *testing.T) {
 				assert.Equal(t, *entry.exp.ToDelete, *svc.ToDelete)
 			} else {
 				assert.Nil(t, entry.exp.ToDelete)
+			}
+
+			if entry.exp.References != nil {
+				opts := []cmp.Option{
+					cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+				}
+
+				eq := cmp.Equal(entry.exp.References, svc.References, opts...)
+				assert.True(t, eq)
+				if !eq {
+					t.Log(cmp.Diff(entry.exp.References, svc.References, opts...))
+				}
+			} else {
+				assert.Nil(t, entry.exp.References)
 			}
 		})
 	}

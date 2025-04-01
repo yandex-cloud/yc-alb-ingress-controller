@@ -52,6 +52,8 @@ type Reconciler struct {
 
 	Names *metadata.Names
 
+	Resolvers *builders.Resolvers
+
 	recorder record.EventRecorder
 }
 
@@ -77,7 +79,12 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 			return obj, fmt.Errorf("failed to update finalizer: %w", err)
 		}
 
-		tg, err := r.TargetGroupBuilder.Build(ctx, req.NamespacedName)
+		locations, err := r.getCommonLocations(svc.References)
+		if err != nil {
+			return obj, fmt.Errorf("failed to get common network: %w", err)
+		}
+
+		tg, err := r.TargetGroupBuilder.Build(ctx, req.NamespacedName, locations)
 		if err != nil {
 			return obj, fmt.Errorf("failed to build target group: %w", err)
 		}
@@ -170,6 +177,42 @@ func getGroupNamesFromIngresses(ings []networking.Ingress) map[string]struct{} {
 		res[ing.GetAnnotations()[k8s.AlbTag]] = struct{}{}
 	}
 	return res
+}
+
+func (r *Reconciler) getCommonLocations(groups map[string]k8s.IngressGroup) ([]*apploadbalancer.Location, error) {
+	var commonLocations map[string]*apploadbalancer.Location
+	for _, group := range groups {
+		resolver := r.Resolvers.Location()
+		for _, ing := range group.Items {
+			err := resolver.Resolve(ing.GetAnnotations()[k8s.Subnets])
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve location: %w", err)
+			}
+		}
+
+		_, locations, err := resolver.Result()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get result: %w", err)
+		}
+		if commonLocations == nil {
+			commonLocations = make(map[string]*apploadbalancer.Location)
+			for _, location := range locations {
+				commonLocations[location.SubnetId] = location
+			}
+		} else {
+			for _, location := range locations {
+				if _, ok := commonLocations[location.SubnetId]; !ok {
+					delete(commonLocations, location.SubnetId)
+				}
+			}
+		}
+	}
+
+	var res []*apploadbalancer.Location
+	for _, location := range commonLocations {
+		res = append(res, location)
+	}
+	return res, nil
 }
 
 func (r *Reconciler) updateGroupStatuses(
