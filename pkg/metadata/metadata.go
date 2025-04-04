@@ -81,12 +81,14 @@ func (n *Names) TargetGroup(name types.NamespacedName) string {
 	return fmt.Sprintf("%s-%x", "tg", n.sha(fmt.Sprintf("%s-%s-%s", name.Namespace, name.Name, n.ClusterID)))
 }
 
-func (n *Names) BackendGroup(tag, host, path, pathtype string) string {
-	return fmt.Sprintf("%s-%x", "bg", n.sha(fmt.Sprintf("%s-%s-%s-%s", tag, host, path, pathtype)))
+// in past there was only one backend group associated with service
+// controller tries to rename them
+func (n *Names) LegacyBackendGroupForSvc(name types.NamespacedName) string {
+	return fmt.Sprintf("%s-%x", "bg", n.sha(fmt.Sprintf("%s-%s-%s", name.Namespace, name.Name, n.ClusterID)))
 }
 
-func (n *Names) NewBackendGroup(name types.NamespacedName) string {
-	return fmt.Sprintf("%s-%x", "bg", n.sha(fmt.Sprintf("%s-%s-%s", name.Namespace, name.Name, n.ClusterID)))
+func (n *Names) BackendGroupForSvcPort(name types.NamespacedName, nodePort int64) string {
+	return fmt.Sprintf("%s-%x", "bg", n.sha(fmt.Sprintf("%s-%s-%s-%d", name.Namespace, name.Name, n.ClusterID, nodePort)))
 }
 
 func (n *Names) Backend(tag, ns, svcName string, port, nodePort int32) string {

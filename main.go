@@ -214,7 +214,7 @@ func main() {
 
 	if err = (&ingress.GroupReconciler{
 		Loader:             k8s.NewGroupLoader(cli),
-		Builder:            reconcile.NewDefaultDataBuilder(factory, resolvers, newEngineFn, folderID, names, certRepo, repo),
+		Builder:            reconcile.NewDefaultDataBuilder(factory, resolvers, newEngineFn, folderID, names, certRepo, repo, cli),
 		Deployer:           deploy.NewIngressGroupDeployManager(repo),
 		StatusUpdater:      &k8s.StatusUpdater{Client: cli},
 		FinalizerManager:   &k8s.FinalizerManager{Client: cli},

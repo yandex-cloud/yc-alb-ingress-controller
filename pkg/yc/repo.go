@@ -30,6 +30,16 @@ func (r *Repository) FindSubnetByID(ctx context.Context, id string) (*vpc.Subnet
 	})
 }
 
+func (r *Repository) ListSubnetsByNetworkID(ctx context.Context, id string) ([]*vpc.Subnet, error) {
+	resp, err := r.sdk.VPC().Network().ListSubnets(ctx, &vpc.ListNetworkSubnetsRequest{
+		NetworkId: id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list subnets: %w", err)
+	}
+	return resp.Subnets, nil
+}
+
 func NewRepository(sdk *ycsdk.SDK, names *metadata.Names, folderID string) *Repository {
 	return &Repository{
 		sdk:      sdk,
@@ -82,6 +92,14 @@ func (r *Repository) UpdateBackendGroup(ctx context.Context, group *apploadbalan
 		BackendGroupId: group.Id,
 		Backend:        b,
 		UpdateMask:     &updateMask,
+	})
+}
+
+func (r *Repository) RenameBackendGroup(ctx context.Context, groupID string, newName string) (*operation.Operation, error) {
+	return r.sdk.ApplicationLoadBalancer().BackendGroup().Update(ctx, &apploadbalancer.UpdateBackendGroupRequest{
+		BackendGroupId: groupID,
+		Name:           newName,
+		UpdateMask:     &fieldmaskpb.FieldMask{Paths: []string{"name"}},
 	})
 }
 

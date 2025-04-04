@@ -112,7 +112,7 @@ type BackendGroupForSvcBuilder struct {
 	Names    *metadata.Names
 }
 
-func (b *BackendGroupForSvcBuilder) BuildForSvc(svc *core.Service, ings []networking.Ingress, tgID string) (*apploadbalancer.BackendGroup, error) {
+func (b *BackendGroupForSvcBuilder) BuildForSvc(svc *core.Service, ings []networking.Ingress, tgID string) ([]*apploadbalancer.BackendGroup, error) {
 	if svc.Spec.Type != core.ServiceTypeNodePort {
 		return nil, fmt.Errorf("type of service %s/%s used by path is not NodePort", svc.Name, svc.Namespace)
 	}
@@ -130,7 +130,7 @@ func (b *BackendGroupForSvcBuilder) BuildForSvc(svc *core.Service, ings []networ
 	return b.buildForSvc(svc, nodePorts, tgID, opts)
 }
 
-func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []core.ServicePort, tgID string, opts BackendResolveOpts) (*apploadbalancer.BackendGroup, error) {
+func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []core.ServicePort, tgID string, opts BackendResolveOpts) ([]*apploadbalancer.BackendGroup, error) {
 	balancingConfig, err := parseBalancingConfigFromStruct(opts.LoadBalancingConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse balancing config: %w", err)
@@ -141,7 +141,8 @@ func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []c
 		tls = &apploadbalancer.BackendTls{}
 	}
 
-	var backend apploadbalancer.BackendGroup_Backend
+	var bgs []*apploadbalancer.BackendGroup
+
 	if opts.BackendType == GRPC {
 		backends, err := b.buildGrpcBackends(
 			svc, tgID, nodePorts, balancingConfig,
@@ -156,7 +157,15 @@ func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []c
 			return nil, fmt.Errorf("failed to parse grpc session affinity: %w", err)
 		}
 
-		backend = &apploadbalancer.BackendGroup_Grpc{Grpc: &apploadbalancer.GrpcBackendGroup{Backends: backends, SessionAffinity: sessionAffinity}}
+		for _, backend := range backends {
+			bg := &apploadbalancer.BackendGroup{
+				Name:        b.Names.BackendGroupForSvcPort(k8s.NamespacedNameOf(svc), backend.Port),
+				FolderId:    b.FolderID,
+				Description: fmt.Sprintf("backend group for k8s service %s/%s for port %d", svc.Namespace, svc.Name, backend.Port),
+				Backend:     &apploadbalancer.BackendGroup_Grpc{Grpc: &apploadbalancer.GrpcBackendGroup{Backends: []*apploadbalancer.GrpcBackend{backend}, SessionAffinity: sessionAffinity}},
+			}
+			bgs = append(bgs, bg)
+		}
 	} else {
 		backends, err := b.buildHTTPBackends(
 			svc, tgID, nodePorts, balancingConfig,
@@ -171,15 +180,21 @@ func (b *BackendGroupForSvcBuilder) buildForSvc(svc *core.Service, nodePorts []c
 			return nil, fmt.Errorf("failed to parse http session affinity: %w", err)
 		}
 
-		backend = &apploadbalancer.BackendGroup_Http{Http: &apploadbalancer.HttpBackendGroup{Backends: backends, SessionAffinity: sessionAffinity}}
+		for _, backend := range backends {
+			bg := &apploadbalancer.BackendGroup{
+				Name:        b.Names.BackendGroupForSvcPort(k8s.NamespacedNameOf(svc), backend.Port),
+				FolderId:    b.FolderID,
+				Description: fmt.Sprintf("backend group for k8s service %s/%s with port %d", svc.Namespace, svc.Name, backend.Port),
+				Backend: &apploadbalancer.BackendGroup_Http{Http: &apploadbalancer.HttpBackendGroup{
+					Backends:        []*apploadbalancer.HttpBackend{backend},
+					SessionAffinity: sessionAffinity,
+				}},
+			}
+			bgs = append(bgs, bg)
+		}
 	}
 
-	return &apploadbalancer.BackendGroup{
-		Name:        b.Names.NewBackendGroup(k8s.NamespacedNameOf(svc)),
-		FolderId:    b.FolderID,
-		Description: fmt.Sprintf("backend group for k8s service %s/%s", svc.Namespace, svc.Name),
-		Backend:     backend,
-	}, nil
+	return bgs, nil
 }
 
 func (b *BackendGroupForSvcBuilder) backendOpts(svc *core.Service, ings []networking.Ingress) (BackendResolveOpts, error) {

@@ -40,5 +40,5 @@ func SubnetIDForProviderID(instance *compute.Instance, suitableIPs []string, sui
 	if resIP != "" {
 		return resSubnetID, resIP, nil
 	}
-	return "", "", fmt.Errorf("internal: mismatch between node's address and instance network interfaces")
+	return "", "", fmt.Errorf("internal: mismatch between node's address and instance network interfaces: interfaces:%v, ips:%v, subnets:%v", instance.NetworkInterfaces, suitableIPs, suitableSubnets)
 }

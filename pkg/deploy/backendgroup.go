@@ -15,6 +15,7 @@ type BackendGroupRepo interface {
 	FindBackendGroup(ctx context.Context, name string) (*apploadbalancer.BackendGroup, error)
 	CreateBackendGroup(ctx context.Context, group *apploadbalancer.BackendGroup) (*operation.Operation, error)
 	UpdateBackendGroup(ctx context.Context, group *apploadbalancer.BackendGroup) (*operation.Operation, error)
+	RenameBackendGroup(ctx context.Context, groupID string, newName string) (*operation.Operation, error)
 	DeleteBackendGroup(context.Context, *apploadbalancer.BackendGroup) (*operation.Operation, error)
 	ListBackendGroupOperations(ctx context.Context, group *apploadbalancer.BackendGroup) ([]*operation.Operation, error)
 }
@@ -69,6 +70,30 @@ func (d *BackendGroupDeployer) Deploy(ctx context.Context, expected *apploadbala
 	}
 
 	return actual, nil
+}
+
+// RenameLegacy returns true if the legacy backend group was renamed
+func (d *BackendGroupDeployer) RenameLegacy(ctx context.Context, oldName string, newBG *apploadbalancer.BackendGroup) (bool, error) {
+	actual, err := d.repo.FindBackendGroup(ctx, oldName)
+	if err != nil {
+		return false, fmt.Errorf("failed to find backend group: %w", err)
+	}
+	if actual == nil {
+		return false, nil
+	}
+
+	if d.predicates.BackendGroupNeedsUpdate(newBG, actual) {
+		return false, nil
+	}
+
+	op, err := d.repo.RenameBackendGroup(ctx, actual.Id, newBG.Name)
+	if err != nil {
+		return false, fmt.Errorf("failed to rename backend group: %w", err)
+	}
+	if op != nil {
+		return false, ycerrors.OperationIncompleteError{ID: op.Id}
+	}
+	return true, err
 }
 
 func (d *BackendGroupDeployer) Undeploy(ctx context.Context, name string) (*apploadbalancer.BackendGroup, error) {

@@ -50,8 +50,8 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 	}
 
 	var (
-		basicBG = &apploadbalancer.BackendGroup{
-			Name:     "bg-5d6f6ba020fd6ad14f8379b75035170ff8070c7c-30080",
+		basicBG1 = &apploadbalancer.BackendGroup{
+			Name:     "bg-1b8e175f9e86c12cb483d5c78a5649316c78ca3d",
 			FolderId: "my-folder",
 			Backend: &apploadbalancer.BackendGroup_Http{
 				Http: &apploadbalancer.HttpBackendGroup{
@@ -65,6 +65,17 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 							},
 							Healthchecks: defaultHealthChecks,
 						},
+					},
+				},
+			},
+		}
+
+		basicBG2 = &apploadbalancer.BackendGroup{
+			Name:     "bg-727b916ad41a19c3982995cf7a3429efb1a62bc2",
+			FolderId: "my-folder",
+			Backend: &apploadbalancer.BackendGroup_Http{
+				Http: &apploadbalancer.HttpBackendGroup{
+					Backends: []*apploadbalancer.HttpBackend{
 						{
 							Name:          "backend-62cb79b453225af83e214cb4d193552084344e26-10000-30081",
 							BackendWeight: &wrapperspb.Int64Value{Value: 1},
@@ -93,8 +104,8 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 			},
 		}}
 
-		secureBG = &apploadbalancer.BackendGroup{
-			Name:     "bg-5d6f6ba020fd6ad14f8379b75035170ff8070c7c-30080",
+		secureBG1 = &apploadbalancer.BackendGroup{
+			Name:     "bg-1b8e175f9e86c12cb483d5c78a5649316c78ca3d",
 			FolderId: "my-folder",
 			Backend: &apploadbalancer.BackendGroup_Http{
 				Http: &apploadbalancer.HttpBackendGroup{
@@ -109,6 +120,17 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 							Healthchecks: secureBGHC,
 							Tls:          &apploadbalancer.BackendTls{},
 						},
+					},
+				},
+			},
+		}
+
+		secureBG2 = &apploadbalancer.BackendGroup{
+			Name:     "bg-727b916ad41a19c3982995cf7a3429efb1a62bc2",
+			FolderId: "my-folder",
+			Backend: &apploadbalancer.BackendGroup_Http{
+				Http: &apploadbalancer.HttpBackendGroup{
+					Backends: []*apploadbalancer.HttpBackend{
 						{
 							Name:          "backend-62cb79b453225af83e214cb4d193552084344e26-10000-30081",
 							BackendWeight: &wrapperspb.Int64Value{Value: 1},
@@ -124,8 +146,8 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 			},
 		}
 
-		http2BG = &apploadbalancer.BackendGroup{
-			Name:     "bg-5d6f6ba020fd6ad14f8379b75035170ff8070c7c-30080",
+		http2BG1 = &apploadbalancer.BackendGroup{
+			Name:     "bg-1b8e175f9e86c12cb483d5c78a5649316c78ca3d",
 			FolderId: "my-folder",
 			Backend: &apploadbalancer.BackendGroup_Http{
 				Http: &apploadbalancer.HttpBackendGroup{
@@ -140,6 +162,16 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 							Healthchecks: defaultHealthChecks,
 							UseHttp2:     true,
 						},
+					},
+				},
+			},
+		}
+		http2BG2 = &apploadbalancer.BackendGroup{
+			Name:     "bg-727b916ad41a19c3982995cf7a3429efb1a62bc2",
+			FolderId: "my-folder",
+			Backend: &apploadbalancer.BackendGroup_Http{
+				Http: &apploadbalancer.HttpBackendGroup{
+					Backends: []*apploadbalancer.HttpBackend{
 						{
 							Name:          "backend-62cb79b453225af83e214cb4d193552084344e26-10000-30081",
 							BackendWeight: &wrapperspb.Int64Value{Value: 1},
@@ -154,9 +186,8 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 				},
 			},
 		}
-
-		grpcBG = &apploadbalancer.BackendGroup{
-			Name:     "bg-5d6f6ba020fd6ad14f8379b75035170ff8070c7c-30080",
+		grpcBG1 = &apploadbalancer.BackendGroup{
+			Name:     "bg-1b8e175f9e86c12cb483d5c78a5649316c78ca3d",
 			FolderId: "my-folder",
 			Backend: &apploadbalancer.BackendGroup_Grpc{
 				Grpc: &apploadbalancer.GrpcBackendGroup{
@@ -170,6 +201,17 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 							},
 							Healthchecks: defaultHealthChecks,
 						},
+					},
+				},
+			},
+		}
+
+		grpcBG2 = &apploadbalancer.BackendGroup{
+			Name:     "bg-727b916ad41a19c3982995cf7a3429efb1a62bc2",
+			FolderId: "my-folder",
+			Backend: &apploadbalancer.BackendGroup_Grpc{
+				Grpc: &apploadbalancer.GrpcBackendGroup{
+					Backends: []*apploadbalancer.GrpcBackend{
 						{
 							Name:          "backend-62cb79b453225af83e214cb4d193552084344e26-10000-30081",
 							BackendWeight: &wrapperspb.Int64Value{Value: 1},
@@ -189,14 +231,14 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 			opts      BackendResolveOpts
 			nodePorts []v12.ServicePort
 			svc       *v12.Service
-			exp       *apploadbalancer.BackendGroup
+			exp       []*apploadbalancer.BackendGroup
 			wantError bool
 		}{
 			{
 				desc: "basic",
 				opts: BackendResolveOpts{healthChecks: defaultHealthChecks},
 				svc:  svc1,
-				exp:  basicBG,
+				exp:  []*apploadbalancer.BackendGroup{basicBG1, basicBG2},
 				nodePorts: []v12.ServicePort{
 					port0080,
 					port0081,
@@ -205,7 +247,7 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 			{
 				desc: "grpc",
 				svc:  svc1,
-				exp:  grpcBG,
+				exp:  []*apploadbalancer.BackendGroup{grpcBG1, grpcBG2},
 				opts: BackendResolveOpts{
 					BackendType: GRPC, healthChecks: defaultHealthChecks,
 				},
@@ -217,7 +259,7 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 			{
 				desc: "http2",
 				svc:  svc1,
-				exp:  http2BG,
+				exp:  []*apploadbalancer.BackendGroup{http2BG1, http2BG2},
 				opts: BackendResolveOpts{
 					BackendType: HTTP2, healthChecks: defaultHealthChecks,
 				},
@@ -229,7 +271,7 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 			{
 				desc: "secure backend",
 				svc:  svc1,
-				exp:  secureBG,
+				exp:  []*apploadbalancer.BackendGroup{secureBG1, secureBG2},
 				opts: BackendResolveOpts{
 					BackendType:  HTTP,
 					Secure:       true,
@@ -250,31 +292,37 @@ func TestBackendGroupForSvcBuilder_BuildForSvc(t *testing.T) {
 				Names:    &metadata.Names{ClusterID: "my-cluster"},
 			}
 
-			bg, err := b.buildForSvc(tc.svc, tc.nodePorts, "target-group-id", tc.opts)
+			bgs, err := b.buildForSvc(tc.svc, tc.nodePorts, "target-group-id", tc.opts)
 			require.True(t, (err != nil) == tc.wantError)
 			if tc.wantError {
 				return
 			}
 
-			assertBackendGroups := func(exp, got *apploadbalancer.BackendGroup) {
-				b1, b2 := exp.GetBackend(), got.GetBackend()
-				if b1 == nil || b2 == nil {
-					require.True(t, (b1 == nil) == (b2 == nil), "exp nil: %v, got nil: %v", b1 == nil, b2 == nil)
-				}
+			assertBackendGroups := func(expBGs, gotBGs []*apploadbalancer.BackendGroup) {
+				require.Equal(t, len(expBGs), len(gotBGs))
+				for i, exp := range expBGs {
+					got := gotBGs[i]
 
-				switch t1 := b1.(type) {
-				case *apploadbalancer.BackendGroup_Http:
-					t2, ok := b2.(*apploadbalancer.BackendGroup_Http)
-					require.True(t, ok, "got backend other than %s", "HTTP")
-					assert.Condition(t, func() bool { return proto.Equal(t1.Http, t2.Http) }, "backends of group mismatch\nexp %v\ngot %v", t1.Http, t2.Http)
-				case *apploadbalancer.BackendGroup_Grpc:
-					t2, ok := b2.(*apploadbalancer.BackendGroup_Grpc)
-					require.True(t, ok, "got backend other than %s", "GRPC")
-					assert.Condition(t, func() bool { return proto.Equal(t1.Grpc, t2.Grpc) }, "backends of group mismatch\nexp %v\ngot %v", t1.Grpc, t2.Grpc)
+					require.Equal(t, exp.GetName(), got.GetName())
+					b1, b2 := exp.GetBackend(), got.GetBackend()
+					if b1 == nil || b2 == nil {
+						require.True(t, (b1 == nil) == (b2 == nil), "exp nil: %v, got nil: %v", b1 == nil, b2 == nil)
+					}
+
+					switch t1 := b1.(type) {
+					case *apploadbalancer.BackendGroup_Http:
+						t2, ok := b2.(*apploadbalancer.BackendGroup_Http)
+						require.True(t, ok, "got backend other than %s", "HTTP")
+						assert.Condition(t, func() bool { return proto.Equal(t1.Http, t2.Http) }, "backends of group mismatch\nexp %v\ngot %v", t1.Http, t2.Http)
+					case *apploadbalancer.BackendGroup_Grpc:
+						t2, ok := b2.(*apploadbalancer.BackendGroup_Grpc)
+						require.True(t, ok, "got backend other than %s", "GRPC")
+						assert.Condition(t, func() bool { return proto.Equal(t1.Grpc, t2.Grpc) }, "backends of group mismatch\nexp %v\ngot %v", t1.Grpc, t2.Grpc)
+					}
 				}
 			}
 
-			assertBackendGroups(bg, tc.exp)
+			assertBackendGroups(tc.exp, bgs)
 		})
 	}
 }

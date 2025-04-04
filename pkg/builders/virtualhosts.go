@@ -84,11 +84,11 @@ func (b *HTTPRouterBuilder) SetOpts(
 	b.ingNs = ingNs
 }
 
-func (b *HTTPRouterBuilder) AddRoute(hp HostAndPath, svcName string) error {
-	bgName := b.names.NewBackendGroup(types.NamespacedName{
+func (b *HTTPRouterBuilder) AddRoute(hp HostAndPath, svcName string, svcPort int64) error {
+	bgName := b.names.BackendGroupForSvcPort(types.NamespacedName{
 		Namespace: b.ingNs,
 		Name:      svcName,
-	})
+	}, svcPort)
 	bg, err := b.backendGroupFinder.FindBackendGroup(context.TODO(), bgName)
 
 	if bg == nil {

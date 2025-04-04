@@ -41,7 +41,7 @@ func NewTargetGroupBuilder(folderID string, cli client.Client, names *metadata.N
 	}
 }
 
-func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName, locations []*apploadbalancer.Location) (*apploadbalancer.TargetGroup, error) {
+func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName, suitableSubnets []string) (*apploadbalancer.TargetGroup, error) {
 	nodeNames, err := t.getServiceNodeNames(ctx, svc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service node names: %w", err)
@@ -53,11 +53,6 @@ func (t *TargetGroupBuilder) Build(ctx context.Context, svc types.NamespacedName
 		return nil, fmt.Errorf("failed to get service: %w", err)
 	}
 	preferIPv6 := k8ssvc.Annotations[k8s.PreferIPv6Targets] == "true"
-
-	var suitableSubnets []string
-	for _, location := range locations {
-		suitableSubnets = append(suitableSubnets, location.SubnetId)
-	}
 
 	subnetsAnn := k8ssvc.Annotations[k8s.Subnets]
 	if subnetsAnn != "" {

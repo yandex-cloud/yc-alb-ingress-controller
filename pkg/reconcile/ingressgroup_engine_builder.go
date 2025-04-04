@@ -9,8 +9,10 @@ import (
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+	v1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/yandex-cloud/yc-alb-ingress-controller/api/v1alpha1"
 	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/metadata"
@@ -29,6 +31,7 @@ type DefaultEngineBuilder struct {
 
 	certRepo yc.CertRepo
 	bgFinder builders.BackendGroupFinder
+	k8scli   client.Client
 
 	newIngressGroupEngine func(data *builders.Data) *IngressGroupEngine
 }
@@ -36,6 +39,7 @@ type DefaultEngineBuilder struct {
 func NewDefaultDataBuilder(
 	factory *builders.Factory, resolvers *builders.Resolvers,
 	newEngine func(data *builders.Data) *IngressGroupEngine, folderID string, names *metadata.Names, certRepo yc.CertRepo, bgFinder builders.BackendGroupFinder,
+	cli client.Client,
 ) *DefaultEngineBuilder {
 	return &DefaultEngineBuilder{
 		folderID:  folderID,
@@ -44,6 +48,7 @@ func NewDefaultDataBuilder(
 
 		certRepo: certRepo,
 		bgFinder: bgFinder,
+		k8scli:   cli,
 
 		names:                 names,
 		newIngressGroupEngine: newEngine,
@@ -278,6 +283,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 	tlsVHBuilder := d.factory.TLSHTTPRouterBuilder(g.Tag, d.bgFinder)
 
 	handleBackend := func(
+		ns string,
 		backend networking.IngressBackend,
 		hp builders.HostAndPath,
 		isTlS bool,
@@ -326,8 +332,28 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 		}
 
 		if backend.Service != nil {
+			var svc v1.Service
+			err := d.k8scli.Get(context.Background(), types.NamespacedName{
+				Name:      backend.Service.Name,
+				Namespace: ns,
+			}, &svc)
+			if err != nil {
+				return fmt.Errorf("failed to get service: %w", err)
+			}
+
+			var port int32
+			for _, p := range svc.Spec.Ports {
+				if p.Name == backend.Service.Port.Name || p.Port == backend.Service.Port.Number {
+					port = p.NodePort
+					break
+				}
+			}
+			if port == 0 {
+				return fmt.Errorf("failed to find port for service: %s", backend.Service.Name)
+			}
+
 			if !isTlS {
-				return httpVHBuilder.AddRoute(hp, backend.Service.Name)
+				return httpVHBuilder.AddRoute(hp, backend.Service.Name, int64(port))
 			}
 
 			if backendType != builders.GRPC {
@@ -337,7 +363,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 				}
 			}
 
-			return tlsVHBuilder.AddRoute(hp, backend.Service.Name)
+			return tlsVHBuilder.AddRoute(hp, backend.Service.Name, int64(port))
 		}
 
 		return nil
@@ -387,7 +413,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 					return nil, nil, fmt.Errorf("error getting host and path: %w", err)
 				}
 
-				err = handleBackend(path.Backend, hp, k8s.IsTLS(hp.Host, ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
+				err = handleBackend(ing.Namespace, path.Backend, hp, k8s.IsTLS(hp.Host, ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
 				if err != nil {
 					return nil, nil, fmt.Errorf("error handling backend: %w", err)
 				}
@@ -428,7 +454,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 				PathType: string(networking.PathTypePrefix),
 			}
 
-			err = handleBackend(*ing.Spec.DefaultBackend, hp, k8s.IsTLS(host, ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
+			err = handleBackend(ing.Namespace, *ing.Spec.DefaultBackend, hp, k8s.IsTLS(host, ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error handling backend: %w", err)
 			}
@@ -440,7 +466,7 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 			Path:     "/",
 			PathType: string(networking.PathTypePrefix),
 		}
-		err = handleBackend(*ing.Spec.DefaultBackend, hp, k8s.IsTLS("*", ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
+		err = handleBackend(ing.Namespace, *ing.Spec.DefaultBackend, hp, k8s.IsTLS("*", ing.Spec.TLS), routeOpts.BackendType, directResponseActions, redirectActions)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error handling backend: %w", err)
 		}

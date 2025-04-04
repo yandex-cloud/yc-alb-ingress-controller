@@ -25,3 +25,21 @@ func ContainSameElements[T comparable](lhs, rhs []T) bool {
 
 	return reflect.DeepEqual(m1, m2)
 }
+
+func Filter[T any](elements []T, f func(T) bool) []T {
+	var result []T
+	for _, element := range elements {
+		if f(element) {
+			result = append(result, element)
+		}
+	}
+	return result
+}
+
+func Map[T, U any](elements []T, f func(T) U) []U {
+	var result []U
+	for _, element := range elements {
+		result = append(result, f(element))
+	}
+	return result
+}

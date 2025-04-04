@@ -744,7 +744,7 @@ func TestVirtualHosts(t *testing.T) {
 					hp, err := HTTPIngressPathToHostAndPath(r.Host, p, tc.routeOpts.UseRegex)
 					require.NoError(t, err)
 
-					err = b.AddRoute(hp, p.Backend.Service.Name)
+					err = b.AddRoute(hp, p.Backend.Service.Name, 8080)
 					require.NoError(t, err)
 				}
 			}
