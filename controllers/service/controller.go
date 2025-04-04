@@ -116,6 +116,7 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 			}
 
 			if err == nil && legacyBG != nil {
+				// try to rename legacy if found
 				if len(bgs) == 1 {
 					newBG := bgs[0]
 					ok, err := r.BackendGroupDeployer.RenameLegacy(ctx, legacyBG.Name, newBG)
@@ -125,17 +126,6 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 					if ok {
 						return obj, nil
 					}
-				}
-
-				// if legacy group doesn't match with new, delete it
-				err = r.RemoveBGIDFromGroupStatuses(ctx, *svc.ToReconcile, legacyBG)
-				if err != nil {
-					return obj, fmt.Errorf("failed to remove ids from group statuses: %w", err)
-				}
-
-				_, err = r.BackendGroupDeployer.Undeploy(ctx, legacyBG.Name)
-				if err != nil {
-					return obj, fmt.Errorf("failed to delete legacy backend group: %w", err)
 				}
 			}
 
@@ -147,6 +137,20 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 				err = r.AddBGIDToGroupStatuses(ctx, *svc.ToReconcile, bg)
 				if err != nil {
 					return obj, fmt.Errorf("failed to add bg id to group statuses: %w", err)
+				}
+			}
+
+			if legacyBG != nil {
+				// if legacy group doesn't match with new, delete it
+				// at this step there are no chance to rename
+				err = r.RemoveBGIDFromGroupStatuses(ctx, *svc.ToReconcile, legacyBG)
+				if err != nil {
+					return obj, fmt.Errorf("failed to remove ids from group statuses: %w", err)
+				}
+
+				_, err = r.BackendGroupDeployer.Undeploy(ctx, legacyBG.Name)
+				if err != nil {
+					return obj, fmt.Errorf("failed to delete legacy backend group: %w", err)
 				}
 			}
 		}
