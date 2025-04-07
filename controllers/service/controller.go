@@ -129,11 +129,15 @@ func (r *Reconciler) doReconcile(ctx context.Context, req ctrl.Request) (*core.S
 				}
 			}
 
+			var deployedBGs []*apploadbalancer.BackendGroup
 			for _, bg := range bgs {
 				bg, err = r.BackendGroupDeployer.Deploy(ctx, bg)
+				deployedBGs = append(deployedBGs, bg)
 				if err != nil {
 					return obj, fmt.Errorf("failed to deploy backend group: %w", err)
 				}
+			}
+			for _, bg := range deployedBGs {
 				err = r.AddBGIDToGroupStatuses(ctx, *svc.ToReconcile, bg)
 				if err != nil {
 					return obj, fmt.Errorf("failed to add bg id to group statuses: %w", err)
