@@ -9,6 +9,8 @@
   ".changes/v0.2.18.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.18.md",
   ".changes/v0.2.20.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.20.md",
   ".changes/v0.2.21.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.21.md",
+  ".changes/v0.2.22.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.22.md",
+  ".changes/v0.2.23.md":"opensource/yc-alb-ingress-controller/.changes/v0.2.23.md",
   ".changie.yaml":"opensource/yc-alb-ingress-controller/.changie.yaml",
   ".env.example":"opensource/yc-alb-ingress-controller/.env.example",
   ".gitignore":"opensource/yc-alb-ingress-controller/.gitignore",

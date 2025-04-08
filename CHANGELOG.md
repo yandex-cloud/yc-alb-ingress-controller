@@ -1,6 +1,15 @@
 # Changelog
 
 
+## v0.2.23 - April 7, 2025
+### Fixed
+* Fix backend group creation order
+
+## v0.2.22 - April 4, 2025
+### Fixed
+* Few network interfaces handling
+* References to service with few ports
+
 ## v0.2.21 - March 20, 2025
 ### Fixed
 * Fix support for nodes with multiple network interfaces
