@@ -388,7 +388,7 @@ func buildModifyHeaderOpts(modifyHeader ModifyHeaderOpts) []*apploadbalancer.Hea
 func buildRouteOpts(modifyResponseOpts, modifyRequestOpts ModifyHeaderOpts, securityProfileID string) *apploadbalancer.RouteOptions {
 	modifyResponseHeaders := buildModifyHeaderOpts(modifyResponseOpts)
 	modifyRequestHeaders := buildModifyHeaderOpts(modifyRequestOpts)
-	if len(modifyResponseHeaders) == 0 && securityProfileID == "" {
+	if len(modifyResponseHeaders) == 0 && len(modifyRequestHeaders) == 0 && securityProfileID == "" {
 		return nil
 	}
 
