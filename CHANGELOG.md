@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.24 - July 1, 2025
+### Fixed
+* Fix modify-request-header support
+
 ## v0.2.23 - April 7, 2025
 ### Fixed
 * Fix backend group creation order
