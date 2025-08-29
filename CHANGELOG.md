@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.25 - August 29, 2025
+### Fixed
+* GRPCBackendGroup creation triggers services reconciliation now
+
 ## v0.2.24 - July 1, 2025
 ### Fixed
 * Fix modify-request-header support

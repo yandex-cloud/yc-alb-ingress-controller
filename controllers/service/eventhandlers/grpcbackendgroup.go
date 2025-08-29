@@ -12,28 +12,28 @@ import (
 	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/algo"
 )
 
-type HTTPBackendGroupEventHandler struct {
+type GRPCBackendGroupEventHandler struct {
 	Log logr.Logger
 	cli client.Client
 }
 
-func (s HTTPBackendGroupEventHandler) Create(event event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (s GRPCBackendGroupEventHandler) Create(event event.CreateEvent, q workqueue.RateLimitingInterface) {
 	s.Log.WithValues(
 		"namespace", event.Object.GetNamespace(),
 		"name", event.Object.GetName()).
 		Info("Service create event detected")
 
-	s.Common(event.Object.(*v1alpha1.HttpBackendGroup), q)
+	s.Common(event.Object.(*v1alpha1.GrpcBackendGroup), q)
 }
 
-func (s HTTPBackendGroupEventHandler) Update(event event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (s GRPCBackendGroupEventHandler) Update(event event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	s.Log.WithValues(
 		"namespace", event.ObjectNew.GetNamespace(),
 		"name", event.ObjectNew.GetName()).
 		Info("Service update event detected")
 
-	oldServices := parseServicesFromHTTPBG(event.ObjectOld.(*v1alpha1.HttpBackendGroup))
-	newServices := parseServicesFromHTTPBG(event.ObjectNew.(*v1alpha1.HttpBackendGroup))
+	oldServices := parseServicesFromGRPCBG(event.ObjectOld.(*v1alpha1.GrpcBackendGroup))
+	newServices := parseServicesFromGRPCBG(event.ObjectNew.(*v1alpha1.GrpcBackendGroup))
 
 	// trigger only inserted or removed services
 	toUpdate := algo.SetsExceptUnion(oldServices, newServices)
@@ -42,36 +42,36 @@ func (s HTTPBackendGroupEventHandler) Update(event event.UpdateEvent, q workqueu
 	}
 }
 
-func (s HTTPBackendGroupEventHandler) Delete(event event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (s GRPCBackendGroupEventHandler) Delete(event event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	s.Log.WithValues(
 		"namespace", event.Object.GetNamespace(),
 		"name", event.Object.GetName()).
 		Info("Service delete event detected")
 
-	s.Common(event.Object.(*v1alpha1.HttpBackendGroup), q)
+	s.Common(event.Object.(*v1alpha1.GrpcBackendGroup), q)
 }
 
-func (s HTTPBackendGroupEventHandler) Generic(event event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (s GRPCBackendGroupEventHandler) Generic(event event.GenericEvent, q workqueue.RateLimitingInterface) {
 	s.Log.WithValues(
 		"namespace", event.Object.GetNamespace(),
 		"name", event.Object.GetName()).
 		Info("Generic node event detected")
 
-	s.Common(event.Object.(*v1alpha1.HttpBackendGroup), q)
+	s.Common(event.Object.(*v1alpha1.GrpcBackendGroup), q)
 }
 
-func (s HTTPBackendGroupEventHandler) Common(ing *v1alpha1.HttpBackendGroup, q workqueue.RateLimitingInterface) {
-	svcs := parseServicesFromHTTPBG(ing)
+func (s GRPCBackendGroupEventHandler) Common(ing *v1alpha1.GrpcBackendGroup, q workqueue.RateLimitingInterface) {
+	svcs := parseServicesFromGRPCBG(ing)
 	for svc := range svcs {
 		q.Add(ctrl.Request{NamespacedName: svc})
 	}
 }
 
-func NewHTTPBackendGroupEventHandler(logger logr.Logger, cli client.Client) *HTTPBackendGroupEventHandler {
-	return &HTTPBackendGroupEventHandler{Log: logger, cli: cli}
+func NewGRPCBackendGroupEventHandler(logger logr.Logger, cli client.Client) *GRPCBackendGroupEventHandler {
+	return &GRPCBackendGroupEventHandler{Log: logger, cli: cli}
 }
 
-func parseServicesFromHTTPBG(ing *v1alpha1.HttpBackendGroup) map[types.NamespacedName]struct{} {
+func parseServicesFromGRPCBG(ing *v1alpha1.GrpcBackendGroup) map[types.NamespacedName]struct{} {
 	result := make(map[types.NamespacedName]struct{})
 
 	for _, be := range ing.Spec.Backends {

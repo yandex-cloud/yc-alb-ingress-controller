@@ -393,6 +393,11 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, useEndpointSlices bool) 
 		return fmt.Errorf("failed to watch http backend groups: %w", err)
 	}
 
+	err = c.Watch(&source.Kind{Type: &v1alpha1.GrpcBackendGroup{}}, eventhandlers.NewGRPCBackendGroupEventHandler(mgr.GetLogger(), mgr.GetClient()))
+	if err != nil {
+		return fmt.Errorf("failed to watch grpc backend groups: %w", err)
+	}
+
 	r.recorder = mgr.GetEventRecorderFor(k8s.ControllerName)
 
 	return nil
