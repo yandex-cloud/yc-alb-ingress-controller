@@ -23,6 +23,8 @@ const (
 	InternalIPv4Address = prefix + "/internal-ipv4-address"
 	InternalALBSubnet   = prefix + "/internal-alb-subnet"
 
+	AllowHTTP10 = prefix + "/allow-http10"
+
 	RequestTimeout = prefix + "/request-timeout"
 	IdleTimeout    = prefix + "/idle-timeout"
 	PrefixRewrite  = prefix + "/prefix-rewrite"

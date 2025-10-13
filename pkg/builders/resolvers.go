@@ -50,6 +50,10 @@ func (r *Resolvers) AutoScalePolicy() *AutoScalePolicyResolver {
 	return &AutoScalePolicyResolver{}
 }
 
+func (r *Resolvers) AllowHTTP10() *AllowHTTP10Resolver {
+	return &AllowHTTP10Resolver{}
+}
+
 func (r *Resolvers) RouteOpts() RouteOptsResolver {
 	return RouteOptsResolver{}
 }
@@ -480,6 +484,44 @@ func (r *AutoScalePolicyResolver) Result() *apploadbalancer.AutoScalePolicy {
 		p.MaxSize = *r.MaxSize
 	}
 	return p
+}
+
+type AllowHTTP10Resolver struct {
+	AllowHTTP10 *bool
+}
+
+func (r *AllowHTTP10Resolver) Resolve(allowHTTP10 string) error {
+	if allowHTTP10 == "" {
+		return nil
+	}
+
+	newAllowHTTP10 := false
+	switch allowHTTP10 {
+	case "true":
+		newAllowHTTP10 = true
+	case "false":
+		newAllowHTTP10 = false
+	default:
+		return fmt.Errorf("unsupported value for allow http10: %s", allowHTTP10)
+	}
+
+	if r.AllowHTTP10 == nil {
+		r.AllowHTTP10 = &newAllowHTTP10
+		return nil
+	}
+
+	if *r.AllowHTTP10 != newAllowHTTP10 {
+		return fmt.Errorf("different values provided for allow http10: %t, %t", *r.AllowHTTP10, newAllowHTTP10)
+	}
+
+	return nil
+}
+
+func (r *AllowHTTP10Resolver) Result() bool {
+	if r.AllowHTTP10 == nil {
+		return false
+	}
+	return *r.AllowHTTP10
 }
 
 type RouteOptsResolver struct{}

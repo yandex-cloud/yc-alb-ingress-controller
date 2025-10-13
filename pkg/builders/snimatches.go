@@ -13,12 +13,17 @@ type HandlerBuilder struct {
 	names *metadata.Names
 	tag   string
 
+	opts HandlerOptions
 	// keep the order in which hosts are fed to this builder so that map randomization shouldn't cause updates
 	hostsOrder []string
 	// collect certificates per host and ensure no duplicated hosts
 	certs map[string][]string
 	// ensure no duplicated certificates for the same hosts
 	hostAndCerts map[hostAndCert]struct{}
+}
+
+func (b *HandlerBuilder) AddHandlerOptions(opts HandlerOptions) {
+	b.opts = opts
 }
 
 func (b *HandlerBuilder) AddCertificate(hosts []string, certID string) {
@@ -43,7 +48,7 @@ func (b *HandlerBuilder) Build() []*apploadbalancer.SniMatch {
 		sniName := b.names.SNIMatchForHost(b.tag, host)
 		sniHandler := &apploadbalancer.TlsHandler{
 			Handler: &apploadbalancer.TlsHandler_HttpHandler{
-				HttpHandler: &apploadbalancer.HttpHandler{},
+				HttpHandler: BuildHTTPHandler(b.opts),
 			},
 			CertificateIds: certificateIDs,
 		}
@@ -54,4 +59,12 @@ func (b *HandlerBuilder) Build() []*apploadbalancer.SniMatch {
 		})
 	}
 	return ret
+}
+
+func BuildHTTPHandler(opts HandlerOptions) *apploadbalancer.HttpHandler {
+	handler := &apploadbalancer.HttpHandler{}
+	if opts.AllowHTTP10 {
+		handler.ProtocolSettings = &apploadbalancer.HttpHandler_AllowHttp10{AllowHttp10: true}
+	}
+	return handler
 }

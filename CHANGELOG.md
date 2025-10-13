@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.26 - October 13, 2025
+### Added
+* ingress.alb.yc.io/allow-http10 annotation
+
 ## v0.2.25 - August 29, 2025
 ### Fixed
 * GRPCBackendGroup creation triggers services reconciliation now

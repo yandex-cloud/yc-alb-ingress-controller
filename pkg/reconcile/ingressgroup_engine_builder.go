@@ -56,7 +56,7 @@ func NewDefaultDataBuilder(
 }
 
 // TODO: включать/выключать трафик в зоне - ?
-// TODO: httpHandler -> Http2Options, AllowHttp10 ?
+// TODO: httpHandler -> Http2Options ?
 func (d *DefaultEngineBuilder) Build(ctx context.Context, g *k8s.IngressGroup, settings *v1alpha1.IngressGroupSettings) (*IngressGroupEngine, error) {
 	if len(g.Items) == 0 {
 		return d.newIngressGroupEngine(nil), nil
@@ -75,6 +75,10 @@ func (d *DefaultEngineBuilder) Build(ctx context.Context, g *k8s.IngressGroup, s
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auto scale policy: %w", err)
 	}
+	allowHTTP10, err := d.allowHTTP10(g)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build allow http10: %w", err)
+	}
 
 	opts := builders.Options{
 		BalancerOptions: builders.BalancerOptions{
@@ -86,6 +90,9 @@ func (d *DefaultEngineBuilder) Build(ctx context.Context, g *k8s.IngressGroup, s
 		ListenerOptions: builders.ListenerOptions{
 			Addresses: addresses,
 		},
+		HandlerOptions: builders.HandlerOptions{
+			AllowHTTP10: allowHTTP10,
+		},
 	}
 
 	b := builders.Data{}
@@ -93,8 +100,8 @@ func (d *DefaultEngineBuilder) Build(ctx context.Context, g *k8s.IngressGroup, s
 	if err != nil {
 		return nil, fmt.Errorf("failed to build virtual hosts: %w", err)
 	}
-	b.Handler = d.buildHTTPHandler(g)
-	b.SNIMatches, err = d.buildSNIMatches(ctx, g)
+	b.Handler = builders.BuildHTTPHandler(opts.HandlerOptions)
+	b.SNIMatches, err = d.buildSNIMatches(ctx, g, opts.HandlerOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build sni matches: %w", err)
 	}
@@ -144,6 +151,17 @@ func (d *DefaultEngineBuilder) autoScalePolicy(g *k8s.IngressGroup) (*apploadbal
 		err := resolver.Resolve(ing.GetAnnotations()[k8s.AutoscalingMinZoneSize], ing.GetAnnotations()[k8s.AutoscalingMaxSize])
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve auto scale policy: %w", err)
+		}
+	}
+	return resolver.Result(), nil
+}
+
+func (d *DefaultEngineBuilder) allowHTTP10(g *k8s.IngressGroup) (bool, error) {
+	resolver := d.resolvers.AllowHTTP10()
+	for _, ing := range g.Items {
+		err := resolver.Resolve(ing.GetAnnotations()[k8s.AllowHTTP10])
+		if err != nil {
+			return false, fmt.Errorf("failed to resolve allow http10: %w", err)
 		}
 	}
 	return resolver.Result(), nil
@@ -475,8 +493,10 @@ func (d *DefaultEngineBuilder) buildVirtualHosts(g *k8s.IngressGroup) (*builders
 	return httpVHBuilder.Build(), tlsVHBuilder.Build(), nil
 }
 
-func (d *DefaultEngineBuilder) buildSNIMatches(ctx context.Context, g *k8s.IngressGroup) ([]*apploadbalancer.SniMatch, error) {
+func (d *DefaultEngineBuilder) buildSNIMatches(ctx context.Context, g *k8s.IngressGroup, opts builders.HandlerOptions) ([]*apploadbalancer.SniMatch, error) {
 	b := d.factory.HandlerBuilder(g.Tag)
+	b.AddHandlerOptions(opts)
+
 	for _, ing := range g.Items {
 		for _, tls := range ing.Spec.TLS {
 			if strings.HasPrefix(tls.SecretName, k8s.CertIDPrefix) {
@@ -504,10 +524,6 @@ func (d *DefaultEngineBuilder) buildSNIMatches(ctx context.Context, g *k8s.Ingre
 		}
 	}
 	return b.Build(), nil
-}
-
-func (d *DefaultEngineBuilder) buildHTTPHandler(_ *k8s.IngressGroup) *apploadbalancer.HttpHandler {
-	return &apploadbalancer.HttpHandler{}
 }
 
 func (d *DefaultEngineBuilder) buildBalancer(handler *apploadbalancer.HttpHandler, matches []*apploadbalancer.SniMatch, logOpts *apploadbalancer.LogOptions,

@@ -13,7 +13,12 @@ type ListenerOptions struct {
 	Addresses []*apploadbalancer.Address
 }
 
+type HandlerOptions struct {
+	AllowHTTP10 bool
+}
+
 type Options struct {
 	BalancerOptions
 	ListenerOptions
+	HandlerOptions
 }

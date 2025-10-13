@@ -16,9 +16,10 @@ import (
 
 func TestSNIMatches(t *testing.T) {
 	testData := []struct {
-		desc     string
-		tlsItems []*v1.IngressTLS
-		exp      []*apploadbalancer.SniMatch
+		desc        string
+		handlerOpts HandlerOptions
+		tlsItems    []*v1.IngressTLS
+		exp         []*apploadbalancer.SniMatch
 	}{
 		{
 			desc: "OK",
@@ -61,6 +62,30 @@ func TestSNIMatches(t *testing.T) {
 							HttpHandler: &apploadbalancer.HttpHandler{},
 						},
 						CertificateIds: []string{"XXX2"},
+					},
+				},
+			},
+		},
+		{
+			desc: "OK with allow http1.0",
+			tlsItems: []*v1.IngressTLS{
+				{
+					Hosts:      []string{"example1.com"},
+					SecretName: "XXX1",
+				},
+			},
+			handlerOpts: HandlerOptions{AllowHTTP10: true},
+			exp: []*apploadbalancer.SniMatch{
+				{
+					Name:        "sni-1954a6fc86a55a010c3c8e48f0603e956a6054ec",
+					ServerNames: []string{"example1.com"},
+					Handler: &apploadbalancer.TlsHandler{
+						Handler: &apploadbalancer.TlsHandler_HttpHandler{
+							HttpHandler: &apploadbalancer.HttpHandler{
+								ProtocolSettings: &apploadbalancer.HttpHandler_AllowHttp10{AllowHttp10: true},
+							},
+						},
+						CertificateIds: []string{"XXX1"},
 					},
 				},
 			},
@@ -123,6 +148,7 @@ func TestSNIMatches(t *testing.T) {
 			f := NewFactory("my-folder", "", &metadata.Names{ClusterID: "my-cluster"}, &metadata.Labels{ClusterID: "my-cluster"}, nil, tgRepo)
 
 			b := f.HandlerBuilder(tag)
+			b.AddHandlerOptions(tc.handlerOpts)
 			for _, tls := range tc.tlsItems {
 				b.AddCertificate(tls.Hosts, tls.SecretName)
 			}
