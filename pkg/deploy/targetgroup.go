@@ -6,9 +6,9 @@ import (
 
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/apploadbalancer/v1"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/operation"
-	"google.golang.org/protobuf/proto"
 
 	ycerrors "github.com/yandex-cloud/yc-alb-ingress-controller/pkg/errors"
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/protoeq"
 
 	// this package need to be vendored for mockgen to work, but nothing depends on it in this project
 	_ "github.com/golang/mock/mockgen/model"
@@ -95,7 +95,7 @@ func tgUpdateNeeded(actual, expected []*apploadbalancer.Target) bool {
 	}
 
 	for i := 0; i < len(expected); i++ {
-		if !proto.Equal(expected[i], actual[i]) {
+		if !protoeq.Equal(expected[i], actual[i]) {
 			return true
 		}
 	}

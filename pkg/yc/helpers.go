@@ -11,6 +11,8 @@ import (
 	ycsdk "github.com/yandex-cloud/go-sdk"
 	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	"github.com/yandex-cloud/yc-alb-ingress-controller/pkg/protoeq"
 )
 
 type OperationWaiter struct {
@@ -50,11 +52,11 @@ func (*UpdatePredicates) BalancerNeedsUpdate(alb, exp *apploadbalancer.LoadBalan
 }
 
 func logOptionsNeedUpdate(act, exp *apploadbalancer.LogOptions) bool {
-	return !proto.Equal(act, exp)
+	return !protoeq.Equal(act, exp)
 }
 
 func autoscaleNeedUpdate(act, exp *apploadbalancer.AutoScalePolicy) bool {
-	return !proto.Equal(act, exp)
+	return !protoeq.Equal(act, exp)
 }
 
 func securityGroupsNeedUpdate(ids1 []string, ids2 []string) bool {
@@ -133,11 +135,11 @@ func listenerNeedsUpdate(listener, spec *apploadbalancer.Listener) bool {
 	switch l1 := listener.Listener.(type) {
 	case *apploadbalancer.Listener_Http:
 		l2, ok := spec.Listener.(*apploadbalancer.Listener_Http)
-		return ok && !proto.Equal(l1.Http, l2.Http)
+		return ok && !protoeq.Equal(l1.Http, l2.Http)
 	// TODO: TLS listeners comparison is probably incorrect. implement proper TLS listener update confirmation
 	case *apploadbalancer.Listener_Tls:
 		l2, ok := spec.Listener.(*apploadbalancer.Listener_Tls)
-		return ok && !proto.Equal(l1.Tls, l2.Tls)
+		return ok && !protoeq.Equal(l1.Tls, l2.Tls)
 	default:
 		return false
 	}
@@ -175,7 +177,7 @@ func (*UpdatePredicates) RouterNeedsUpdate(r1, r2 *apploadbalancer.HttpRouter) b
 	}
 	for _, vh := range r2.VirtualHosts {
 		// TODO: refine the comparison
-		if vhIndex, ok := m[vh.Name]; !ok || !proto.Equal(r1.VirtualHosts[vhIndex], vh) {
+		if vhIndex, ok := m[vh.Name]; !ok || !protoeq.Equal(r1.VirtualHosts[vhIndex], vh) {
 			return true
 		}
 	}
@@ -191,10 +193,10 @@ func (*UpdatePredicates) BackendGroupNeedsUpdate(g1, g2 *apploadbalancer.Backend
 	switch t1 := b1.(type) {
 	case *apploadbalancer.BackendGroup_Http:
 		t2, ok := b2.(*apploadbalancer.BackendGroup_Http)
-		return !ok || ok && !proto.Equal(t1.Http, t2.Http)
+		return !ok || ok && !protoeq.Equal(t1.Http, t2.Http)
 	case *apploadbalancer.BackendGroup_Grpc:
 		t2, ok := b2.(*apploadbalancer.BackendGroup_Grpc)
-		return !ok || ok && !proto.Equal(t1.Grpc, t2.Grpc)
+		return !ok || ok && !protoeq.Equal(t1.Grpc, t2.Grpc)
 	}
 	return false
 }
